@@ -9,6 +9,9 @@
 
 //qCC
 #include "../ccStdPluginInterface.h"
+#include <QDoubleSpinBox>
+#include <ccPolyline.h>
+#include <ccPointCloud.h>
 
 
 //#include "ccExametricsDialog.h"
@@ -53,6 +56,23 @@ public:
 	void onNewSelection(const ccHObject::Container& selectedEntities) override;
 	virtual void getActions(QActionGroup& group) override;
 
+private:
+	// normalized vector cloud point for display
+	ccPointCloud* normalizedVectorPoints = nullptr;
+	// normalized vector polyline
+	ccPolyline* normalizedVectorPoly = nullptr;
+
+
+	// spb limits and initial values
+	void initializeSpinBox(ccBBox box);
+	// draw vectors and plans basic settings
+	void initializeDrawSettings();
+
+	void onNormalizedVectorChanged();
+	void onParameterChanged(QDoubleSpinBox* spb, double value);
+
+	double frand_a_b(double a, double b);
+
 protected slots:
 
 	void doAction();
@@ -63,6 +83,18 @@ protected slots:
 	//general
 	void onCompute();
 	void onClose();
+	//plan parameters changed
+	void onSpbXAChanged(double value);
+	void onSpbYAChanged(double value);
+	void onSpbZAChanged(double value);
+	void onSpbXBChanged(double value);
+	void onSpbYBChanged(double value);
+	void onSpbZBChanged(double value);
+	void onSpbXChanged(double value);
+	void onSpbYChanged(double value);
+	void onSpbZChanged(double value);
+	void onToleranceSpbChanged(double value);
+	
 
 protected:
 
