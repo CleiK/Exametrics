@@ -10,8 +10,10 @@
 //qCC
 #include "../ccStdPluginInterface.h"
 #include <QDoubleSpinBox>
-#include <ccPolyline.h>
 #include <ccPointCloud.h>
+#include <ccPolyline.h>
+#include <cc2DLabel.h>
+#include <ccPlane.h>
 
 
 //#include "ccExametricsDialog.h"
@@ -57,11 +59,25 @@ public:
 	virtual void getActions(QActionGroup& group) override;
 
 private:
-	// normalized vector cloud point for display
-	ccPointCloud* normalizedVectorPoints = nullptr;
+	double m_boxXWidth = 0;
+	double m_boxYWidth = 0;
+
+	// normalized vector cloud (display purpose)
+	ccPointCloud* normalizedVectorCloud = nullptr;
 	// normalized vector polyline
 	ccPolyline* normalizedVectorPoly = nullptr;
 
+	// vector point cloud (display purpose)
+	ccPointCloud* vectorPointCloud = nullptr;
+	// vector point 2dlabel
+	cc2DLabel* vectorPoint2DLabel = nullptr;
+
+	// plan cloud (display purpose)
+	ccPointCloud* planCloud = nullptr;
+	// plan
+	ccPlane* plan = nullptr;
+	// plan transformation
+	ccGLMatrix* planTransformation = nullptr;
 
 	// spb limits and initial values
 	void initializeSpinBox(ccBBox box);
@@ -69,8 +85,13 @@ private:
 	void initializeDrawSettings();
 
 	void onNormalizedVectorChanged();
+	void onVectorPointChanged();
 	void onParameterChanged(QDoubleSpinBox* spb, double value);
 
+	CCVector3 computeVector();
+	double normFromVector(CCVector3 vector);
+	bool pointIsOnVector();
+	bool double_equals(double a, double b, double epsilon = 0.001);
 	double frand_a_b(double a, double b);
 
 protected slots:

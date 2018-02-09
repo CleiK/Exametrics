@@ -4,22 +4,20 @@
 //#                                                                        #
 //##########################################################################
 
-//First: replace all occurrences of 'qDummyPlugin' by your own plugin class name in this file!
 #include "ccExametrics.h"
 #include "ccExametricsDialog.h"
 
 //Qt
 #include <QtGui>
 
-//Default constructor: should mainly be used to initialize
-//actions (pointers) and other members
+/* Default constructor */
 ccExametrics::ccExametrics(QObject* parent/*=0*/)
 	: QObject(parent)
 	, m_action(0)
 {
 }
 
-//deconstructor
+/* Deconstructor */
 ccExametrics::~ccExametrics()
 {
 	if (m_dlg)
@@ -79,8 +77,7 @@ void ccExametrics::doAction()
 
 	/*** HERE STARTS THE ACTION ***/
 
-	//put your code here
-	//--> you may want to start by asking parameters (with a custom dialog, etc.)
+
 	//check valid window
 	if (!m_app->getActiveGLWindow())
 	{
@@ -130,7 +127,7 @@ void ccExametrics::doAction()
 	m_app->dispToConsole("Dummy plugin shouldn't be used as is!",ccMainAppInterface::ERR_CONSOLE_MESSAGE); //an error message is displayed in the console AND an error box will pop-up!*/
 }
 
-//called when the plugin is being stopped
+/* Called when the plugin is being stopped */
 void ccExametrics::stop() 
 { 
 	/*//remove click listener
@@ -156,32 +153,49 @@ void ccExametrics::stop()
 	ccStdPluginInterface::stop(); 
 }
 
-//This method should return the plugin icon (it will be used mainly
-//if your plugin as several actions in which case CC will create a
-//dedicated sub-menu entry with this icon.
+/* This method should return the plugin icon (it will be used mainly
+if your plugin as several actions in which case CC will create a
+dedicated sub-menu entry with this icon. */
 QIcon ccExametrics::getIcon() const
 {
-	//open qDummyPlugin.qrc (text file), update the "prefix" and the
-	//icon(s) filename(s). Then save it with the right name (yourPlugin.qrc).
-	//(eventually, remove the original qDummyPlugin.qrc file!)
 	return QIcon(":/CC/plugin/qExametrics/exametrics_icon.png");
 }
 
+/* Slot on Compute button click */
 void ccExametrics::onCompute()
 {
 	m_app->dispToConsole("[ccExametrics] Compute!",ccMainAppInterface::STD_CONSOLE_MESSAGE);
 
 	// vector point is on the normalized vector ?
+	if(!pointIsOnVector())
+		return;
 
+
+	//get point cloud
+	ccPointCloud* cloud = static_cast<ccPointCloud*>(m_app->dbRootObject()); //cast to point cloud
+
+	if (!cloud)
+	{
+		m_app->dispToConsole("[ccExametrics] not a cloud :(", ccMainAppInterface::WRN_CONSOLE_MESSAGE);
+		return;
+	}
+	else
+	{
+		m_app->dispToConsole("[ccExametrics] is a cloud :)", ccMainAppInterface::STD_CONSOLE_MESSAGE);
+	}
 }
 
+/* Slot on dialog closed */
 void ccExametrics::onClose()
 {
 	stop();
 
 	m_app->removeFromDB(this->normalizedVectorPoly);
+	m_app->removeFromDB(this->vectorPoint2DLabel);
+	m_app->removeFromDB(this->plan);
 }
 
+/* Initialize plan parameters at random values with min and max limits */
 void ccExametrics::initializeSpinBox(ccBBox box)
 {
 	CCVector3 minCorner = box.minCorner();
@@ -192,6 +206,8 @@ void ccExametrics::initializeSpinBox(ccBBox box)
 	yBox = maxCorner.y - minCorner.y;
 	zBox = maxCorner.z - minCorner.z;
 
+	this->m_boxXWidth = xBox;
+	this->m_boxYWidth = yBox;
 
 	m_dlg->spbXA->setMinimum(minCorner.x);
 	m_dlg->spbYA->setMinimum(minCorner.y);
@@ -223,9 +239,10 @@ void ccExametrics::initializeSpinBox(ccBBox box)
 	m_dlg->spbZB->setValue(frand_a_b(minCorner.x, maxCorner.x));
 
 	// random point on vector [(Xb - Xa) * k + Xa]
-	double x = (m_dlg->spbXB->value() - m_dlg->spbXA->value()) * frand_a_b(0, 1) + m_dlg->spbXA->value();
-	double y = (m_dlg->spbYB->value() - m_dlg->spbYA->value()) * frand_a_b(0, 1) + m_dlg->spbYA->value();
-	double z = (m_dlg->spbZB->value() - m_dlg->spbZA->value()) * frand_a_b(0, 1) + m_dlg->spbZA->value();
+	double k = frand_a_b(0, 1);
+	double x = (m_dlg->spbXB->value() - m_dlg->spbXA->value()) * k + m_dlg->spbXA->value();
+	double y = (m_dlg->spbYB->value() - m_dlg->spbYA->value()) * k + m_dlg->spbYA->value();
+	double z = (m_dlg->spbZB->value() - m_dlg->spbZA->value()) * k + m_dlg->spbZA->value();
 	m_dlg->spbX->setValue(x);
 	m_dlg->spbY->setValue(y);
 	m_dlg->spbZ->setValue(z);
@@ -242,22 +259,25 @@ void ccExametrics::initializeSpinBox(ccBBox box)
 	m_app->dispToConsole(boundariesString, ccMainAppInterface::STD_CONSOLE_MESSAGE);
 }
 
+/* Initialize draw settings for normalized vector, point and plan display */
 void ccExametrics::initializeDrawSettings()
 {
+	/* Normalized vector */
+
 	// new 2 points cloud
-	this->normalizedVectorPoints = new ccPointCloud("Normalized vector points");
+	this->normalizedVectorCloud = new ccPointCloud("Normalized vector");
 
 	// reserve 2 points
-	this->normalizedVectorPoints->reserve(2); 
+	this->normalizedVectorCloud->reserve(2); 
 
 	// add points
 	CCVector3 vec0(m_dlg->spbXA->value(), m_dlg->spbYA->value(), m_dlg->spbZA->value());
 	CCVector3 vec1(m_dlg->spbXB->value(), m_dlg->spbYB->value(), m_dlg->spbZB->value());
-	this->normalizedVectorPoints->addPoint(vec0);
-	this->normalizedVectorPoints->addPoint(vec1);
+	this->normalizedVectorCloud->addPoint(vec0);
+	this->normalizedVectorCloud->addPoint(vec1);
 
 	// create the polyline with the 2 points cloud
-	this->normalizedVectorPoly = new ccPolyline(this->normalizedVectorPoints);
+	this->normalizedVectorPoly = new ccPolyline(this->normalizedVectorCloud);
 	// connect the two first points of the cloud
 	this->normalizedVectorPoly->addPointIndex(0,2);
 	// color
@@ -268,6 +288,31 @@ void ccExametrics::initializeDrawSettings()
 	this->normalizedVectorPoly->setDisplay(m_app->getActiveGLWindow()); 
 	// save in DB tree
 	m_app->addToDB(this->normalizedVectorPoly); 
+
+	/* Vector point */
+
+	this->vectorPointCloud = new ccPointCloud("Vector point");
+	this->vectorPointCloud->reserve(1);
+	this->vectorPointCloud->addPoint(CCVector3(m_dlg->spbX->value(), m_dlg->spbY->value(), m_dlg->spbZ->value()));
+	this->vectorPoint2DLabel = new cc2DLabel("Vector point");
+	this->vectorPoint2DLabel->addPoint(this->vectorPointCloud, this->vectorPointCloud->size() - 1);
+	this->vectorPoint2DLabel->setVisible(true);
+	this->vectorPoint2DLabel->setDisplay(m_app->getActiveGLWindow());
+	m_app->addToDB(this->vectorPoint2DLabel);
+
+	/* Plan */
+	this->planCloud = new ccPointCloud("Plan");
+	this->planCloud->reserve(4);
+	// this->planCloud add points
+	planTransformation = new ccGLMatrix();
+	double normalizedVectorNorm = normFromVector(computeVector());
+	m_app->dispToConsole("Norme du vecteur: " + QString::number(normalizedVectorNorm), ccMainAppInterface::STD_CONSOLE_MESSAGE);
+	double phi = acos((m_boxXWidth / 2) / normalizedVectorNorm);
+	m_app->dispToConsole("Phi = " + QString::number(phi) + " or = " + QString::number(phi * 180 / M_PI), ccMainAppInterface::STD_CONSOLE_MESSAGE);
+	// initFromParameters phi theta psi: projeter le vecteur normal pour obtenir les angles + translation depuis le point
+	this->plan = new ccPlane(m_boxXWidth, m_boxYWidth, planTransformation);
+	this->plan->setDisplay(m_app->getActiveGLWindow()); 
+	m_app->addToDB(this->plan);
 }
 
 void ccExametrics::onSpbXAChanged(double value){ onParameterChanged(m_dlg->spbXA, value); onNormalizedVectorChanged(); }
@@ -278,40 +323,89 @@ void ccExametrics::onSpbXBChanged(double value){ onParameterChanged(m_dlg->spbXB
 void ccExametrics::onSpbYBChanged(double value){ onParameterChanged(m_dlg->spbYB, value); onNormalizedVectorChanged(); }
 void ccExametrics::onSpbZBChanged(double value){ onParameterChanged(m_dlg->spbZB, value); onNormalizedVectorChanged(); }
 
-void ccExametrics::onSpbXChanged(double value){ onParameterChanged(m_dlg->spbX, value); }
-void ccExametrics::onSpbYChanged(double value){ onParameterChanged(m_dlg->spbY, value); }
-void ccExametrics::onSpbZChanged(double value){ onParameterChanged(m_dlg->spbZ, value); }
+void ccExametrics::onSpbXChanged(double value){ onParameterChanged(m_dlg->spbX, value); onVectorPointChanged(); }
+void ccExametrics::onSpbYChanged(double value){ onParameterChanged(m_dlg->spbY, value); onVectorPointChanged(); }
+void ccExametrics::onSpbZChanged(double value){ onParameterChanged(m_dlg->spbZ, value); onVectorPointChanged(); }
 
 void ccExametrics::onToleranceSpbChanged(double value){ onParameterChanged(m_dlg->toleranceSpb, value); }
 
-// update vector
+/* Called when the parameters of the normalized vector are changing */
 void ccExametrics::onNormalizedVectorChanged()
 {
-	if(!this->normalizedVectorPoints)
+	if(!this->normalizedVectorCloud)
 		return;
 
 	// clear old points
-	this->normalizedVectorPoints->clear();
-
-	// remove displayed polyline
+	this->normalizedVectorCloud->clear();
 
 	// reserve 2 points
-	this->normalizedVectorPoints->reserve(2); 
+	this->normalizedVectorCloud->reserve(2); 
 
 	// add points
 	CCVector3 vec0(m_dlg->spbXA->value(), m_dlg->spbYA->value(), m_dlg->spbZA->value());
 	CCVector3 vec1(m_dlg->spbXB->value(), m_dlg->spbYB->value(), m_dlg->spbZB->value());
-	this->normalizedVectorPoints->addPoint(vec0);
-	this->normalizedVectorPoints->addPoint(vec1);
+	this->normalizedVectorCloud->addPoint(vec0);
+	this->normalizedVectorCloud->addPoint(vec1);
 
 	//m_app->getActiveGLWindow()->moveCamera(1,0,0);
 	//m_app->updateUI();
 	//m_app->refreshAll();
 }
 
+void ccExametrics::onVectorPointChanged()
+{
+	if(!this->vectorPointCloud)
+		return;
+
+	// verif point est sur le vecteur (doit verifier [(Xb - Xa) * k + Xa])
+	if(!pointIsOnVector())
+		m_app->dispToConsole("[ccExametrics] Defined point is not on the normalized vector.", ccMainAppInterface::WRN_CONSOLE_MESSAGE);
+
+	this->vectorPointCloud->clear();
+	this->vectorPointCloud->reserve(1);
+	this->vectorPointCloud->addPoint(CCVector3(m_dlg->spbX->value(), m_dlg->spbY->value(), m_dlg->spbZ->value()));
+}
+
 void ccExametrics::onParameterChanged(QDoubleSpinBox* spb, double value)
 {
-	m_app->dispToConsole("[ccExametrics] onParameterChanged " + spb->objectName() + " " + QString::number(value), ccMainAppInterface::STD_CONSOLE_MESSAGE);
+	//m_app->dispToConsole("[ccExametrics] onParameterChanged " + spb->objectName() + " " + QString::number(value), ccMainAppInterface::STD_CONSOLE_MESSAGE);
+}
+
+
+CCVector3 ccExametrics::computeVector()
+{
+	return CCVector3(m_dlg->spbXB->value() - m_dlg->spbXA->value(), m_dlg->spbYB->value() - m_dlg->spbYA->value(), m_dlg->spbZB->value() - m_dlg->spbZA->value());
+}
+
+double ccExametrics::normFromVector(CCVector3 vector)
+{
+	return sqrt(pow(vector.x, 2) + pow(vector.y, 2) + pow(vector.z, 2));
+}
+
+bool ccExametrics::pointIsOnVector()
+{
+	double kx = 0, ky = 0, kz = 0;
+	bool isOn = false;
+
+	kx = (m_dlg->spbX->value() - m_dlg->spbXA->value()) / (m_dlg->spbXB->value() - m_dlg->spbXA->value());
+	ky = (m_dlg->spbY->value() - m_dlg->spbYA->value()) / (m_dlg->spbYB->value() - m_dlg->spbYA->value());
+	kz = (m_dlg->spbZ->value() - m_dlg->spbZA->value()) / (m_dlg->spbZB->value() - m_dlg->spbZA->value());
+
+	if(double_equals(kx, ky) && double_equals(kx, kz) && double_equals(ky, kz))
+		isOn = true;
+
+	/*m_app->dispToConsole("[ccExametrics] kx = " + QString::number(kx) 
+						+ " ky = " + QString::number(ky)
+						+ " kz = " + QString::number(kz)
+						+ " isOn = " + QString::number(isOn)
+						, ccMainAppInterface::STD_CONSOLE_MESSAGE);*/
+
+	return isOn;
+}
+
+bool ccExametrics::double_equals(double a, double b, double epsilon)
+{
+    return std::abs(a - b) < epsilon;
 }
 
 double ccExametrics::frand_a_b(double a, double b)
