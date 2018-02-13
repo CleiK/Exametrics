@@ -27,7 +27,7 @@ class ccExametricsDialog;
 	(QAction objects). CloudCompare will automatically add them to an
 	icon in the plugin toolbar and to an entry in the plugin menu
 	(if your plugin returns several actions, CC will create a dedicated
-	toolbar and sub-menu). 
+	toolbar and sub-menu).
 	You are responsible to connect these actions to custom slots of your
 	plugin.
 	Look at the ccStdPluginInterface::m_app attribute to get access to
@@ -88,8 +88,10 @@ private:
 	void onVectorPointChanged();
 	void onParameterChanged(QDoubleSpinBox* spb, double value);
 
+	double getNormX();
+	double getNormY();
+	double getNormZ();
 	CCVector3 computeVector();
-	double normFromVector(CCVector3 vector);
 	bool pointIsOnVector();
 	bool double_equals(double a, double b, double epsilon = 0.001);
 	double frand_a_b(double a, double b);
@@ -115,7 +117,7 @@ protected slots:
 	void onSpbYChanged(double value);
 	void onSpbZChanged(double value);
 	void onToleranceSpbChanged(double value);
-	
+
 
 protected:
 
