@@ -15,6 +15,8 @@
 #include <cc2DLabel.h>
 #include <ccPlane.h>
 
+#include "utils.h"
+
 
 //#include "ccExametricsDialog.h"
 class ccExametricsDialog;
@@ -59,8 +61,16 @@ public:
 	virtual void getActions(QActionGroup& group) override;
 
 private:
+
+    /* Members */
+
 	double m_boxXWidth = 0;
 	double m_boxYWidth = 0;
+
+	CCVector3 m_vectorPoint = CCVector3(0,0,0);
+
+
+	/* Display purpose variables */
 
 	// normalized vector cloud (display purpose)
 	ccPointCloud* normalizedVectorCloud = nullptr;
@@ -79,22 +89,37 @@ private:
 	// plan transformation
 	ccGLMatrix* planTransformation = nullptr;
 
+
+	/* Initialization methods */
+
 	// spb limits and initial values
-	void initializeSpinBox(ccBBox box);
+	void initializeParameterWidgets(ccBBox box);
 	// draw vectors and plans basic settings
 	void initializeDrawSettings();
 
-	void onNormalizedVectorChanged();
-	void onVectorPointChanged();
-	void onParameterChanged(QDoubleSpinBox* spb, double value);
 
-	double getNormX();
+	/* On events methods */
+
+	void onNormalizedVectorChanged();
+	void onVectorPointChanged(int coef);
+	void onParameterChanged(QWidget* w, double value);
+
+
+	/* Getters */
+
+    double getNormX();
 	double getNormY();
 	double getNormZ();
-	CCVector3 computeVector();
-	bool pointIsOnVector();
-	bool double_equals(double a, double b, double epsilon = 0.001);
-	double frand_a_b(double a, double b);
+	CCVector3 getNormalizedVectorPointA();
+	CCVector3 getNormalizedVectorPointB();
+	CCVector3 getNormalizedVector();
+	CCVector3 getVectorPoint();
+
+
+	/* Other methods*/
+
+	//bool pointIsOnVector(CCVector3 vectorPointA, CCVector3 vectorPointB, CCVector3 myPoint);
+
 
 protected slots:
 
@@ -113,9 +138,7 @@ protected slots:
 	void onSpbXBChanged(double value);
 	void onSpbYBChanged(double value);
 	void onSpbZBChanged(double value);
-	void onSpbXChanged(double value);
-	void onSpbYChanged(double value);
-	void onSpbZChanged(double value);
+	void onCoefSliderChanged(int value);
 	void onToleranceSpbChanged(double value);
 
 
