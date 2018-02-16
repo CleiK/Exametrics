@@ -363,27 +363,29 @@ void ccExametrics::onVectorPointChanged(int coef)
 
     // calcul du point en utilisant le vecteur
     CCVector3 pointA = getNormalizedVectorPointA();
+    CCVector3 pointB = getNormalizedVectorPointB();
     CCVector3 normalizedVector = getNormalizedVector();
+    double vectorNorm = normalizedVector.norm2d();
     double k = (double)coef / 100;
+    //double d = k * vectorNorm;
 
     CCVector3 resultVector = CCVector3(normalizedVector.x * k, normalizedVector.y * k, normalizedVector.z * k);
 
-    double l = 1, m = 0, n = 0;
+    /*double l = 1, m = 0, n = 0;
     m = (l * (normalizedVector.y - pointA.y)) / (normalizedVector.x - pointA.x);
-    n = (m * (normalizedVector.z - pointA.z)) / (normalizedVector.y - pointA.y);
+    n = (m * (normalizedVector.z - pointA.z)) / (normalizedVector.y - pointA.y);*/
 
-    this->m_vectorPoint = CCVector3(resultVector.x * l + pointA.x, resultVector.y * m + pointA.y, resultVector.z * n + pointA.z);
+    this->m_vectorPoint = CCVector3(k * pointB.x + pointA.x, k * pointB.y + pointA.y, k * pointB.z + pointA.z);
+    //this->m_vectorPoint = CCVector3(resultVector.x + pointA.x, resultVector.y + pointA.y, resultVector.z + pointA.z);
 
     m_app->dispToConsole("[ccExametrics] k = " + QString::number(k), ccMainAppInterface::STD_CONSOLE_MESSAGE);
     m_app->dispToConsole("[ccExametrics] normalizedVector = " + Utils::ccVector3ToString(normalizedVector)
                         + " resultVector = " + Utils::ccVector3ToString(resultVector)
                         + " pointA = " + Utils::ccVector3ToString(pointA)
                         + " vectorPoint = " + Utils::ccVector3ToString(getVectorPoint())
-                        + " l = " + QString::number(l)
-                        + " m = " + QString::number(m)
-                        + " n = " + QString::number(n), ccMainAppInterface::STD_CONSOLE_MESSAGE);
+                        , ccMainAppInterface::STD_CONSOLE_MESSAGE);
 
-
+//+ " l = " + QString::number(l)                        + " m = " + QString::number(m)                        + " n = " + QString::number(n)
 	// verif point est sur le vecteur (doit verifier [(Xb - Xa) * k + Xa])
 	/*if(!pointIsOnVector(getNormalizedVectorPointA(), getNormalizedVectorPointB(), getVectorPoint()))
 		m_app->dispToConsole("[ccExametrics] Defined point is not on the normalized vector.", ccMainAppInterface::WRN_CONSOLE_MESSAGE);*/
