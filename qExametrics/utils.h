@@ -14,6 +14,9 @@ class Utils
         static double frand_a_b(double a, double b);
 
         static QString ccVector3ToString(CCVector3 v);
+        static QString ccVector3ToString(CCVector3d v);
+
+        static CCVector3 ccVectorDoubleToFloat(CCVector3d v);
 };
 
 

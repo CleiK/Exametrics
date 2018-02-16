@@ -187,9 +187,9 @@ void ccExametrics::onClose()
 {
 	stop();
 
-	m_app->removeFromDB(this->normalizedVectorPoly);
+	//m_app->removeFromDB(this->normalizedVectorPoly);
 	m_app->removeFromDB(this->vectorPoint2DLabel);
-	m_app->removeFromDB(this->plan);
+	m_app->removeFromDB(this->pPlane);
 }
 
 /* Initialize plan parameters at random values with min and max limits */
@@ -234,13 +234,12 @@ void ccExametrics::initializeParameterWidgets(ccBBox box)
 	// tolerance
 	m_dlg->toleranceSpb->setValue(0.01);
 
-
-	QString boundariesString = "[ccExametrics] Boundaries: ("
+	/*QString boundariesString = "[ccExametrics] Boundaries: ("
 								+ QString::number(xBox) + "; "
 								+ QString::number(yBox) + "; "
 								+ QString::number(zBox) + ")";
 
-	m_app->dispToConsole(boundariesString, ccMainAppInterface::STD_CONSOLE_MESSAGE);
+	m_app->dispToConsole(boundariesString, ccMainAppInterface::STD_CONSOLE_MESSAGE);*/
 }
 
 /* Initialize draw settings for normalized vector, point and plan display */
@@ -248,15 +247,15 @@ void ccExametrics::initializeDrawSettings()
 {
 	/* Normalized vector */
 
-	// new 2 points cloud
+	/*// new 2 points cloud
 	this->normalizedVectorCloud = new ccPointCloud("Normalized vector");
 
 	// reserve 2 points
 	this->normalizedVectorCloud->reserve(2);
 
 	// add points
-	this->normalizedVectorCloud->addPoint((CCVector3)getNormalizedVectorPointA());
-	this->normalizedVectorCloud->addPoint((CCVector3)getNormalizedVectorPointB());
+	this->normalizedVectorCloud->addPoint(Utils::ccVectorDoubleToFloat(getNormalizedVectorPointA()));
+	this->normalizedVectorCloud->addPoint(Utils::ccVectorDoubleToFloat(getNormalizedVectorPointB()));
 
 	// create the polyline with the 2 points cloud
 	this->normalizedVectorPoly = new ccPolyline(this->normalizedVectorCloud);
@@ -269,13 +268,13 @@ void ccExametrics::initializeDrawSettings()
 	// where to display
 	this->normalizedVectorPoly->setDisplay(m_app->getActiveGLWindow());
 	// save in DB tree
-	m_app->addToDB(this->normalizedVectorPoly);
+	m_app->addToDB(this->normalizedVectorPoly);*/
 
 	/* Vector point */
 
 	this->vectorPointCloud = new ccPointCloud("Vector point");
 	this->vectorPointCloud->reserve(1);
-	this->vectorPointCloud->addPoint(getVectorPoint());
+	this->vectorPointCloud->addPoint(Utils::ccVectorDoubleToFloat(getVectorPoint()));
 	this->vectorPoint2DLabel = new cc2DLabel("Vector point");
 	this->vectorPoint2DLabel->addPoint(this->vectorPointCloud, this->vectorPointCloud->size() - 1);
 	this->vectorPoint2DLabel->setVisible(true);
@@ -283,39 +282,39 @@ void ccExametrics::initializeDrawSettings()
 	m_app->addToDB(this->vectorPoint2DLabel);
 
 	/* Plan */
-	/*this->planCloud = new ccPointCloud("Plan");
+	// Plan equation: ax + by + cz + d = 0
+    CCVector3d v = getNormalizedVector();
+    double d = -(v.x * m_vectorPoint.x + v.y * m_vectorPoint.y + v.z * m_vectorPoint.z);
+
+	this->planCloud = new ccPointCloud("Plan");
 	this->planCloud->reserve(4);
-	planTransformation = new ccGLMatrix();
-	planTransformation->toIdentity();
+	for(double i = 1; i <= 4; i++)
+	{
+        CCVector3d planPoint = CCVector3d((-v.y * i - v.z * i - d) / v.x, i, i);
+        this->planCloud->addPoint(Utils::ccVectorDoubleToFloat(planPoint));
+	}
+    double rms = 0.0;
 
-	CCVector3 normalizedVector = getNormalizedVector();
-	CCVector3 vectorPoint = getVectorPoint();
-	double normalizedVectorNorm = normalizedVector.normd();
-	//double normOB = sqrt(pow(m_dlg->spbXB->value(), 2) + pow(m_dlg->spbYB->value(), 2) + pow(m_dlg->spbZB->value(), 2));
-	double phi = acos(normalizedVector.x / (normalizedVectorNorm * sin(acos(normalizedVector.z / normalizedVectorNorm)))); // (x)
-	double theta = 0;
-    double psi = acos(normalizedVector.z / normalizedVectorNorm); // (z)
-	m_app->dispToConsole("composantes x: " + QString::number(normalizedVector.x)
-                        + " y: " + QString::number(normalizedVector.y)
-                        + " z: " + QString::number(normalizedVector.z)
-                        + "\nnorme: " + QString::number(normalizedVectorNorm)
-                        //+ "\n normOB: " + QString::number(normOB)
-                        );
-	m_app->dispToConsole("Phi = " + QString::number(phi) + " or = " + QString::number(phi * 180 / M_PI), ccMainAppInterface::STD_CONSOLE_MESSAGE);
-	m_app->dispToConsole("Theta = " + QString::number(theta) + " or = " + QString::number(theta * 180 / M_PI), ccMainAppInterface::STD_CONSOLE_MESSAGE);
-	m_app->dispToConsole("Psi = " + QString::number(psi) + " or = " + QString::number(psi * 180 / M_PI), ccMainAppInterface::STD_CONSOLE_MESSAGE);
+    //this->pPlane = new ccPlane("Plan");
+    //this->pPlane>Fit(this->planCloud, &rms);
+    this->pPlane = ccPlane::Fit(this->planCloud, &rms);
 
-    //CCVector3 orthoVector1 = normalizedVector.orthogonal();
-    //m_app->dispToConsole("[ccExametrics] ortho vector 1:  " + QString::number(orthoVector1.x) + " " + QString::number(orthoVector1.y) + " " + QString::number(orthoVector1.z));
-	// initFromParameters phi theta psi: projeter le vecteur normal pour obtenir les angles + translation depuis le point
-	//planTransformation->initFromParameters(phi, theta, psi, Vector3Tpl<float>(0,0,0));
-    planTransformation->initFromParameters(phi, theta, psi, vectorPoint);
-	//planTransformation->initFromParameters(0,0,0,vectorPoint);
+    //this->pPlane->redrawDisplay();
 
-    //planTransformation->applyRotation(orthoVector1);
-	this->plan = new ccPlane(m_boxXWidth, m_boxYWidth, planTransformation);
-	this->plan->setDisplay(m_app->getActiveGLWindow());
-	m_app->addToDB(this->plan);*/
+    if(this->pPlane)
+    {
+        //make plane to add to display
+		pPlane->setVisible(true);
+		pPlane->setSelectionBehavior(ccHObject::SELECTION_IGNORED);
+
+		m_app->dbRootObject()->addChild(pPlane);
+		pPlane->setDisplay(m_app->getActiveGLWindow());
+		//pPlane->prepareDisplayForRefresh_recursive(); //not sure what this does, but it looks like fun
+
+		//add plane to TOC
+		m_app->addToDB(pPlane);
+    }
+
 }
 
 /* Called when xA spinbox changed value */
@@ -348,60 +347,76 @@ void ccExametrics::onNormalizedVectorChanged()
 	this->normalizedVectorCloud->reserve(2);
 
 	// add points
-    this->normalizedVectorCloud->addPoint(getNormalizedVectorPointA());
-	this->normalizedVectorCloud->addPoint(getNormalizedVectorPointB());
-
-	//m_app->getActiveGLWindow()->moveCamera(1,0,0);
-	//m_app->updateUI();
-	//m_app->refreshAll();
+    this->normalizedVectorCloud->addPoint(Utils::ccVectorDoubleToFloat(getNormalizedVectorPointA()));
+	this->normalizedVectorCloud->addPoint(Utils::ccVectorDoubleToFloat(getNormalizedVectorPointB()));
 }
 
 /* Called when the parameter of the vector point is changing */
 void ccExametrics::onVectorPointChanged(int coef)
 {
-    m_dlg->lblCoef->setText(QString::number(coef) + "%");
-
-    // calcul du point en utilisant le vecteur
-    CCVector3 pointA = getNormalizedVectorPointA();
-    CCVector3 pointB = getNormalizedVectorPointB();
-    CCVector3 normalizedVector = getNormalizedVector();
-    double vectorNorm = normalizedVector.norm2d();
-    double k = (double)coef / 100;
-    //double d = k * vectorNorm;
-
-    CCVector3 resultVector = CCVector3(normalizedVector.x * k, normalizedVector.y * k, normalizedVector.z * k);
-
-    /*double l = 1, m = 0, n = 0;
-    m = (l * (normalizedVector.y - pointA.y)) / (normalizedVector.x - pointA.x);
-    n = (m * (normalizedVector.z - pointA.z)) / (normalizedVector.y - pointA.y);*/
-
-    this->m_vectorPoint = CCVector3(k * pointB.x + pointA.x, k * pointB.y + pointA.y, k * pointB.z + pointA.z);
-    //this->m_vectorPoint = CCVector3(resultVector.x + pointA.x, resultVector.y + pointA.y, resultVector.z + pointA.z);
-
-    m_app->dispToConsole("[ccExametrics] k = " + QString::number(k), ccMainAppInterface::STD_CONSOLE_MESSAGE);
-    m_app->dispToConsole("[ccExametrics] normalizedVector = " + Utils::ccVector3ToString(normalizedVector)
-                        + " resultVector = " + Utils::ccVector3ToString(resultVector)
-                        + " pointA = " + Utils::ccVector3ToString(pointA)
-                        + " vectorPoint = " + Utils::ccVector3ToString(getVectorPoint())
-                        , ccMainAppInterface::STD_CONSOLE_MESSAGE);
-
-//+ " l = " + QString::number(l)                        + " m = " + QString::number(m)                        + " n = " + QString::number(n)
-	// verif point est sur le vecteur (doit verifier [(Xb - Xa) * k + Xa])
-	/*if(!pointIsOnVector(getNormalizedVectorPointA(), getNormalizedVectorPointB(), getVectorPoint()))
-		m_app->dispToConsole("[ccExametrics] Defined point is not on the normalized vector.", ccMainAppInterface::WRN_CONSOLE_MESSAGE);*/
-
-    if(!this->vectorPointCloud)
-		return;
-
-	this->vectorPointCloud->clear();
-	this->vectorPointCloud->reserve(1);
-	this->vectorPointCloud->addPoint(getVectorPoint());
+    this->m_coef = coef;
+    m_dlg->lblCoef->setText(QString::number(this->m_coef) + "%");
 }
 
 /* Called when a parameters of the plan is changing */
 void ccExametrics::onParameterChanged(QWidget* w, double value)
 {
 	//m_app->dispToConsole("[ccExametrics] onParameterChanged " + spb->objectName() + " " + QString::number(value), ccMainAppInterface::STD_CONSOLE_MESSAGE);
+
+    /* First, recalculte vector point */
+
+	// calcul du point en utilisant le vecteur
+    CCVector3d pointA = getNormalizedVectorPointA();
+    CCVector3d pointB = getNormalizedVectorPointB();
+    CCVector3d normalizedVector = getNormalizedVector();
+    double vectorNorm = normalizedVector.normd();
+    double k = (double)this->m_coef / 100;
+
+    CCVector3d resultVector = CCVector3d(normalizedVector.x * k, normalizedVector.y * k, normalizedVector.z * k);
+
+    this->m_vectorPoint = CCVector3d(k * (pointB.x - pointA.x) + pointA.x, k * (pointB.y - pointA.y) + pointA.y, k * (pointB.z - pointA.z) + pointA.z);
+
+    /*m_app->dispToConsole("[ccExametrics] k = " + QString::number(k), ccMainAppInterface::STD_CONSOLE_MESSAGE);
+    m_app->dispToConsole("[ccExametrics] normalizedVector = " + Utils::ccVector3ToString(normalizedVector)
+                        + " resultVector = " + Utils::ccVector3ToString(resultVector)
+                        + " pointA = " + Utils::ccVector3ToString(pointA)
+                        + " vectorPoint = " + Utils::ccVector3ToString(getVectorPoint())
+                        + " norm = " + QString::number(vectorNorm)
+                        , ccMainAppInterface::STD_CONSOLE_MESSAGE);*/
+
+    if(this->vectorPointCloud)
+    {
+    	this->vectorPointCloud->clear();
+        this->vectorPointCloud->reserve(1);
+        this->vectorPointCloud->addPoint(Utils::ccVectorDoubleToFloat(getVectorPoint()));
+    }
+
+    /* Then, calculte plan */
+
+    // Plan equation: ax + by + cz + d = 0
+
+
+    CCVector3d v = getNormalizedVector();
+    double d = -(v.x * m_vectorPoint.x + v.y * m_vectorPoint.y + v.z * m_vectorPoint.z);
+
+
+    if(!this->planCloud || !this->pPlane)
+        return;
+
+    this->planCloud->clear();
+	this->planCloud->reserve(4);
+	for(double i = 1; i <= 4; i++)
+	{
+        CCVector3d planPoint = CCVector3d((-v.y * i - v.z * i - d) / v.x, i, i);
+        this->planCloud->addPoint(Utils::ccVectorDoubleToFloat(planPoint));
+	}
+
+	/*this->pPlane->redrawDisplay();
+	m_app->dispToConsole("[ccExametrics] Redraw plan (onParameterChanged)", ccMainAppInterface::STD_CONSOLE_MESSAGE);*/
+    double rms = 0.0;
+    this->pPlane = ccPlane::Fit(this->planCloud, &rms);
+    m_app->dispToConsole("[ccExametrics] plan (onParameterChanged)", ccMainAppInterface::STD_CONSOLE_MESSAGE);
+
 }
 
 /* Return the norm on X axis for the normalized vector */
@@ -411,13 +426,13 @@ double ccExametrics::getNormY() { if(!m_dlg) return 0; return abs(m_dlg->spbYB->
 /* Return the norm on Z axis for the normalized vector */
 double ccExametrics::getNormZ() { if(!m_dlg) return 0; return abs(m_dlg->spbZB->value() - m_dlg->spbZA->value()); }
 /* Return point A of the normalized vector */
-CCVector3 ccExametrics::getNormalizedVectorPointA(){ if(!m_dlg) return CCVector3(0,0,0); return CCVector3(m_dlg->spbXA->value(), m_dlg->spbYA->value(), m_dlg->spbZA->value()); }
+CCVector3d ccExametrics::getNormalizedVectorPointA(){ if(!m_dlg) return CCVector3d(0,0,0); return CCVector3d(m_dlg->spbXA->value(), m_dlg->spbYA->value(), m_dlg->spbZA->value()); }
 /* Return point B of the normalized vector */
-CCVector3 ccExametrics::getNormalizedVectorPointB(){ if(!m_dlg) return CCVector3(0,0,0); return CCVector3(m_dlg->spbXB->value(), m_dlg->spbYB->value(), m_dlg->spbZB->value()); }
+CCVector3d ccExametrics::getNormalizedVectorPointB(){ if(!m_dlg) return CCVector3d(0,0,0); return CCVector3d(m_dlg->spbXB->value(), m_dlg->spbYB->value(), m_dlg->spbZB->value()); }
 /* Return the normalized vector */
-CCVector3 ccExametrics::getNormalizedVector() { if(!m_dlg) return CCVector3(0,0,0); return CCVector3(getNormX(), getNormY(), getNormZ()); }
+CCVector3d ccExametrics::getNormalizedVector() { if(!m_dlg) return CCVector3d(0,0,0); return CCVector3d(getNormX(), getNormY(), getNormZ()); }
 /* Return the point on the vector (compute from coef distance) */
-CCVector3 ccExametrics::getVectorPoint() { return m_vectorPoint; }
+CCVector3d ccExametrics::getVectorPoint() { return m_vectorPoint; }
 
 
 /*bool ccExametrics::pointIsOnVector(CCVector3 vectorPointA, CCVector3 vectorPointB, CCVector3 myPoint)

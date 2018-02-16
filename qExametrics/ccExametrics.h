@@ -67,7 +67,9 @@ private:
 	double m_boxXWidth = 0;
 	double m_boxYWidth = 0;
 
-	CCVector3 m_vectorPoint = CCVector3(0,0,0);
+	CCVector3d m_vectorPoint = CCVector3d(0,0,0);
+
+	double m_coef = 0;
 
 
 	/* Display purpose variables */
@@ -85,9 +87,9 @@ private:
 	// plan cloud (display purpose)
 	ccPointCloud* planCloud = nullptr;
 	// plan
-	ccPlane* plan = nullptr;
+	ccPlane* pPlane = nullptr;
 	// plan transformation
-	ccGLMatrix* planTransformation = nullptr;
+	//ccGLMatrix* planTransformation = nullptr;
 
 
 	/* Initialization methods */
@@ -110,10 +112,10 @@ private:
     double getNormX();
 	double getNormY();
 	double getNormZ();
-	CCVector3 getNormalizedVectorPointA();
-	CCVector3 getNormalizedVectorPointB();
-	CCVector3 getNormalizedVector();
-	CCVector3 getVectorPoint();
+	CCVector3d getNormalizedVectorPointA();
+	CCVector3d getNormalizedVectorPointB();
+	CCVector3d getNormalizedVector();
+	CCVector3d getVectorPoint();
 
 
 	/* Other methods*/

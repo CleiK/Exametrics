@@ -20,3 +20,13 @@ QString Utils::ccVector3ToString(CCVector3 v)
 				  + ", " + QString::number(v.z)
 				  + ")");
 }
+
+QString Utils::ccVector3ToString(CCVector3d v)
+{
+	return Utils::ccVector3ToString(Utils::ccVectorDoubleToFloat(v));
+}
+
+CCVector3 Utils::ccVectorDoubleToFloat(CCVector3d v)
+{
+	return CCVector3(v.x, v.y, v.z);
+}
