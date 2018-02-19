@@ -14,6 +14,7 @@
 #include <ccPolyline.h>
 #include <cc2DLabel.h>
 #include <ccPlane.h>
+#include <unistd.h>
 
 #include "utils.h"
 
@@ -86,6 +87,8 @@ private:
 
 	// plan cloud (display purpose)
 	ccPointCloud* planCloud = nullptr;
+	// plan cloud points
+	//CCVector3d* planCloudPoints[4] = {nullptr};
 	// plan
 	ccPlane* pPlane = nullptr;
 	// plan transformation
@@ -105,6 +108,7 @@ private:
 	void onNormalizedVectorChanged();
 	void onVectorPointChanged(int coef);
 	void onParameterChanged(QWidget* w, double value);
+	void updatePlan();
 
 
 	/* Getters */
@@ -121,6 +125,7 @@ private:
 	/* Other methods*/
 
 	//bool pointIsOnVector(CCVector3 vectorPointA, CCVector3 vectorPointB, CCVector3 myPoint);
+	void warn(QString s);
 
 
 protected slots:

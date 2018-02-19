@@ -282,39 +282,15 @@ void ccExametrics::initializeDrawSettings()
 	m_app->addToDB(this->vectorPoint2DLabel);
 
 	/* Plan */
-	// Plan equation: ax + by + cz + d = 0
-    CCVector3d v = getNormalizedVector();
-    double d = -(v.x * m_vectorPoint.x + v.y * m_vectorPoint.y + v.z * m_vectorPoint.z);
-
-	this->planCloud = new ccPointCloud("Plan");
-	this->planCloud->reserve(4);
-	for(double i = 1; i <= 4; i++)
+	/*while(m_dlg->spbZB->value() == 0)
 	{
-        CCVector3d planPoint = CCVector3d((-v.y * i - v.z * i - d) / v.x, i, i);
-        this->planCloud->addPoint(Utils::ccVectorDoubleToFloat(planPoint));
-	}
-    double rms = 0.0;
+        usleep(200);
+        warn("sleep ");
+	}*/
 
-    //this->pPlane = new ccPlane("Plan");
-    //this->pPlane>Fit(this->planCloud, &rms);
-    this->pPlane = ccPlane::Fit(this->planCloud, &rms);
-
-    //this->pPlane->redrawDisplay();
-
-    if(this->pPlane)
-    {
-        //make plane to add to display
-		pPlane->setVisible(true);
-		pPlane->setSelectionBehavior(ccHObject::SELECTION_IGNORED);
-
-		m_app->dbRootObject()->addChild(pPlane);
-		pPlane->setDisplay(m_app->getActiveGLWindow());
-		//pPlane->prepareDisplayForRefresh_recursive(); //not sure what this does, but it looks like fun
-
-		//add plane to TOC
-		m_app->addToDB(pPlane);
-    }
-
+    this->planCloud = new ccPointCloud("Plan");
+    m_app->dispToConsole("[ccExametrics] before plan update", ccMainAppInterface::STD_CONSOLE_MESSAGE);
+    this->updatePlan();
 }
 
 /* Called when xA spinbox changed value */
@@ -361,7 +337,7 @@ void ccExametrics::onVectorPointChanged(int coef)
 /* Called when a parameters of the plan is changing */
 void ccExametrics::onParameterChanged(QWidget* w, double value)
 {
-	//m_app->dispToConsole("[ccExametrics] onParameterChanged " + spb->objectName() + " " + QString::number(value), ccMainAppInterface::STD_CONSOLE_MESSAGE);
+	m_app->dispToConsole("[ccExametrics] onParameterChanged " + w->objectName() + " " + QString::number(value), ccMainAppInterface::STD_CONSOLE_MESSAGE);
 
     /* First, recalculte vector point */
 
@@ -392,67 +368,110 @@ void ccExametrics::onParameterChanged(QWidget* w, double value)
     }
 
     /* Then, calculte plan */
+    this->updatePlan();
 
-    // Plan equation: ax + by + cz + d = 0
-
-
-    CCVector3d v = getNormalizedVector();
-    double d = -(v.x * m_vectorPoint.x + v.y * m_vectorPoint.y + v.z * m_vectorPoint.z);
-
-
-    if(!this->planCloud || !this->pPlane)
-        return;
-
-    this->planCloud->clear();
-	this->planCloud->reserve(4);
-	for(double i = 1; i <= 4; i++)
-	{
-        CCVector3d planPoint = CCVector3d((-v.y * i - v.z * i - d) / v.x, i, i);
-        this->planCloud->addPoint(Utils::ccVectorDoubleToFloat(planPoint));
-	}
-
-	/*this->pPlane->redrawDisplay();
-	m_app->dispToConsole("[ccExametrics] Redraw plan (onParameterChanged)", ccMainAppInterface::STD_CONSOLE_MESSAGE);*/
-    double rms = 0.0;
-    this->pPlane = ccPlane::Fit(this->planCloud, &rms);
-    m_app->dispToConsole("[ccExametrics] plan (onParameterChanged)", ccMainAppInterface::STD_CONSOLE_MESSAGE);
+    //m_app->dispToConsole("[ccExametrics] plan (onParameterChanged)", ccMainAppInterface::STD_CONSOLE_MESSAGE);
 
 }
 
+void ccExametrics::updatePlan()
+{
+    if(!this->planCloud)
+    {
+        m_app->dispToConsole("[ccExametrics] Can't update plan, planCloud does not exist !",
+                             ccMainAppInterface::WRN_CONSOLE_MESSAGE);
+        return;
+    }
+
+    if(this->pPlane)
+        m_app->removeFromDB(this->pPlane);
+    m_app->dispToConsole("[ccExametrics] Update plan", ccMainAppInterface::STD_CONSOLE_MESSAGE);
+
+
+	// calcul du point en utilisant le vecteur
+    CCVector3d pointA = getNormalizedVectorPointA();
+    CCVector3d pointB = getNormalizedVectorPointB();
+    double k = (double)this->m_coef / 100;
+    // Plan equation: ax + by + cz + d = 0
+    CCVector3d v = getNormalizedVector();
+    // Compute d from vector point
+    double d = -(v.x * m_vectorPoint.x + v.y * m_vectorPoint.y + v.z * m_vectorPoint.z);
+
+    // clear points
+    this->planCloud->clear();
+    // reserve 4 points in memory
+	this->planCloud->reserve(4);
+	// assign points
+	for(double i = 1; i <= 4; i++)
+	{
+        CCVector3d planPoint = CCVector3d(k * (pointB.x - pointA.x) + pointA.x, k * (pointB.y - pointA.y) + pointA.y, k * (pointB.z - pointA.z) + pointA.z);
+        this->planCloud->addPoint(Utils::ccVectorDoubleToFloat(planPoint));
+	}
+
+
+
+    /*// fixed x:min y:min
+	CCVector3d point1 = CCVector3d(0,0,0);
+	// fixed x:min y:max
+	CCVector3d point2 = CCVector3d(0,0,0);
+	// fixed x:max y:min
+	CCVector3d point3 = CCVector3d(0,0,0);
+	// fixed x:max y:max
+	CCVector3d point4 = CCVector3d(0,0,0);
+
+	this->planCloud->addPoint(point1);
+	this->planCloud->addPoint(point2);
+	this->planCloud->addPoint(point3);
+	this->planCloud->addPoint(point4);*/
+
+
+
+    double rms = 0.0;
+    // create plan by fit method on plancloud
+    this->pPlane = ccPlane::Fit(this->planCloud, &rms);
+
+    if(this->pPlane)
+    {
+        //m_app->dispToConsole("[ccExametrics] pPlane created", ccMainAppInterface::STD_CONSOLE_MESSAGE);
+
+        // setrgb ?
+        pPlane->setColor(ccColor::blue);
+
+        pPlane->showNormalVector(true);
+        pPlane->setXWidth(this->m_boxXWidth);
+        pPlane->setYWidth(this->m_boxYWidth);
+
+        //make plane to add to display
+		pPlane->setVisible(true);
+		//pPlane->setSelectionBehavior(ccHObject::SELECTION_IGNORED);
+
+		//m_app->dbRootObject()->addChild(pPlane);
+		pPlane->setDisplay(m_app->getActiveGLWindow());
+		//pPlane->prepareDisplayForRefresh_recursive(); //not sure what this does, but it looks like fun
+
+		//add plane to TOC
+		m_app->addToDB(pPlane);
+    }
+}
+
+void ccExametrics::warn(QString s)
+{
+    m_app->dispToConsole(s + " !! 0 !!", ccMainAppInterface::WRN_CONSOLE_MESSAGE);
+}
+
 /* Return the norm on X axis for the normalized vector */
-double ccExametrics::getNormX() { if(!m_dlg) return 0; return abs(m_dlg->spbXB->value() - m_dlg->spbXA->value()); }
+double ccExametrics::getNormX() { if(!m_dlg) /*warn("normX");*/ return 0; return abs(m_dlg->spbXB->value() - m_dlg->spbXA->value()); }
 /* Return the norm on Y axis for the normalized vector */
-double ccExametrics::getNormY() { if(!m_dlg) return 0; return abs(m_dlg->spbYB->value() - m_dlg->spbYA->value()); }
+double ccExametrics::getNormY() { if(!m_dlg) /*warn("normY");*/ return 0; return abs(m_dlg->spbYB->value() - m_dlg->spbYA->value()); }
 /* Return the norm on Z axis for the normalized vector */
-double ccExametrics::getNormZ() { if(!m_dlg) return 0; return abs(m_dlg->spbZB->value() - m_dlg->spbZA->value()); }
+double ccExametrics::getNormZ() { if(!m_dlg) /*warn("normZ");*/ return 0; return abs(m_dlg->spbZB->value() - m_dlg->spbZA->value()); }
 /* Return point A of the normalized vector */
-CCVector3d ccExametrics::getNormalizedVectorPointA(){ if(!m_dlg) return CCVector3d(0,0,0); return CCVector3d(m_dlg->spbXA->value(), m_dlg->spbYA->value(), m_dlg->spbZA->value()); }
+CCVector3d ccExametrics::getNormalizedVectorPointA(){ if(!m_dlg) /*warn("pointA");*/ return CCVector3d(0,0,0); return CCVector3d(m_dlg->spbXA->value(), m_dlg->spbYA->value(), m_dlg->spbZA->value()); }
 /* Return point B of the normalized vector */
-CCVector3d ccExametrics::getNormalizedVectorPointB(){ if(!m_dlg) return CCVector3d(0,0,0); return CCVector3d(m_dlg->spbXB->value(), m_dlg->spbYB->value(), m_dlg->spbZB->value()); }
+CCVector3d ccExametrics::getNormalizedVectorPointB(){ if(!m_dlg) /*warn("pointB");*/ return CCVector3d(0,0,0); return CCVector3d(m_dlg->spbXB->value(), m_dlg->spbYB->value(), m_dlg->spbZB->value()); }
 /* Return the normalized vector */
-CCVector3d ccExametrics::getNormalizedVector() { if(!m_dlg) return CCVector3d(0,0,0); return CCVector3d(getNormX(), getNormY(), getNormZ()); }
+CCVector3d ccExametrics::getNormalizedVector() { if(!m_dlg) /*warn("vector");*/ return CCVector3d(0,0,0); return CCVector3d(getNormX(), getNormY(), getNormZ()); }
 /* Return the point on the vector (compute from coef distance) */
 CCVector3d ccExametrics::getVectorPoint() { return m_vectorPoint; }
 
-
-/*bool ccExametrics::pointIsOnVector(CCVector3 vectorPointA, CCVector3 vectorPointB, CCVector3 myPoint)
-{
-	double kx = 0, ky = 0, kz = 0;
-	bool isOn = false;
-
-	kx = (myPoint.x - vectorPointA.x) / (vectorPointB.x - vectorPointA.x);
-	ky = (myPoint.y - vectorPointA.y) / (vectorPointB.y - vectorPointA.y);
-	kz = (myPoint.z - vectorPointA.z) / (vectorPointB.z - vectorPointA.z);
-
-	if(Utils::double_equals(kx, ky) && Utils::double_equals(kx, kz) && Utils::double_equals(ky, kz))
-		isOn = true;
-
-	m_app->dispToConsole("[ccExametrics] kx = " + QString::number(kx)
-						+ " ky = " + QString::number(ky)
-						+ " kz = " + QString::number(kz)
-						+ " isOn = " + QString::number(isOn)
-						, ccMainAppInterface::STD_CONSOLE_MESSAGE);
-
-	return isOn;
-}*/
 

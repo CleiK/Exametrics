@@ -82,6 +82,9 @@
      </property>
      <item>
       <layout class="QHBoxLayout" name="vectorPointsHorizontalLayout">
+       <property name="bottomMargin">
+        <number>4</number>
+       </property>
        <item>
         <spacer name="horizontalSpacer_3">
          <property name="orientation">
