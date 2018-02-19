@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>404</width>
-    <height>258</height>
+    <height>222</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -16,6 +16,9 @@
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
     <layout class="QHBoxLayout" name="TitleHLayout">
+     <property name="leftMargin">
+      <number>0</number>
+     </property>
      <item>
       <spacer name="horizontalSpacer_5">
        <property name="orientation">
@@ -71,6 +74,12 @@
    </item>
    <item>
     <layout class="QVBoxLayout" name="ParametersVerticalLayout">
+     <property name="spacing">
+      <number>2</number>
+     </property>
+     <property name="leftMargin">
+      <number>0</number>
+     </property>
      <item>
       <layout class="QHBoxLayout" name="vectorPointsHorizontalLayout">
        <item>
