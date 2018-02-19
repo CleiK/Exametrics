@@ -187,7 +187,6 @@ void ccExametrics::onClose()
 {
 	stop();
 
-	//m_app->removeFromDB(this->normalizedVectorPoly);
 	m_app->removeFromDB(this->vectorPoint2DLabel);
 	m_app->removeFromDB(this->pPlane);
 }
@@ -270,26 +269,25 @@ void ccExametrics::initializeDrawSettings()
 	// save in DB tree
 	m_app->addToDB(this->normalizedVectorPoly);*/
 
+    /* DB Tree (move somewhere else ?) */
+
+    /*if(!exametricsGroup)
+    {
+    	exametricsGroup = new ccHObject("Exametrics");
+        m_app->dbRootObject()->addChild(exametricsGroup);
+        m_app->addToDB(exametricsGroup, false, false, false, false);
+    }*/
+
 	/* Vector point */
 
 	this->vectorPointCloud = new ccPointCloud("Vector point");
-	this->vectorPointCloud->reserve(1);
-	this->vectorPointCloud->addPoint(Utils::ccVectorDoubleToFloat(getVectorPoint()));
-	this->vectorPoint2DLabel = new cc2DLabel("Vector point");
-	this->vectorPoint2DLabel->addPoint(this->vectorPointCloud, this->vectorPointCloud->size() - 1);
-	this->vectorPoint2DLabel->setVisible(true);
-	this->vectorPoint2DLabel->setDisplay(m_app->getActiveGLWindow());
-	m_app->addToDB(this->vectorPoint2DLabel);
+	this->updatePoint();
+	//if(this->vectorPoint2DLabel)
+       // m_app->addToDB(this->vectorPoint2DLabel);
 
-	/* Plan */
-	/*while(m_dlg->spbZB->value() == 0)
-	{
-        usleep(200);
-        warn("sleep ");
-	}*/
+    /* Plan */
 
     this->planCloud = new ccPointCloud("Plan");
-    m_app->dispToConsole("[ccExametrics] before plan update", ccMainAppInterface::STD_CONSOLE_MESSAGE);
     this->updatePlan();
 }
 
@@ -313,7 +311,7 @@ void ccExametrics::onToleranceSpbChanged(double value){ onParameterChanged(m_dlg
 /* Called when the parameters of the normalized vector are changing */
 void ccExametrics::onNormalizedVectorChanged()
 {
-	if(!this->normalizedVectorCloud)
+	/*if(!this->normalizedVectorCloud)
 		return;
 
 	// clear old points
@@ -324,7 +322,7 @@ void ccExametrics::onNormalizedVectorChanged()
 
 	// add points
     this->normalizedVectorCloud->addPoint(Utils::ccVectorDoubleToFloat(getNormalizedVectorPointA()));
-	this->normalizedVectorCloud->addPoint(Utils::ccVectorDoubleToFloat(getNormalizedVectorPointB()));
+	this->normalizedVectorCloud->addPoint(Utils::ccVectorDoubleToFloat(getNormalizedVectorPointB()));*/
 }
 
 /* Called when the parameter of the vector point is changing */
@@ -337,41 +335,42 @@ void ccExametrics::onVectorPointChanged(int coef)
 /* Called when a parameters of the plan is changing */
 void ccExametrics::onParameterChanged(QWidget* w, double value)
 {
-	m_app->dispToConsole("[ccExametrics] onParameterChanged " + w->objectName() + " " + QString::number(value), ccMainAppInterface::STD_CONSOLE_MESSAGE);
+	//m_app->dispToConsole("[ccExametrics] onParameterChanged " + w->objectName() + " " + QString::number(value), ccMainAppInterface::STD_CONSOLE_MESSAGE);
 
-    /* First, recalculte vector point */
+    /* Compute vector point display */
+    this->updatePoint();
+
+    /* Then, compute plan display */
+    this->updatePlan();
+}
+
+void ccExametrics::updatePoint()
+{
+    if(!this->vectorPointCloud)
+        return;
+
+    this->vectorPointCloud->clear();
+	this->vectorPointCloud->reserve(1);
 
 	// calcul du point en utilisant le vecteur
     CCVector3d pointA = getNormalizedVectorPointA();
     CCVector3d pointB = getNormalizedVectorPointB();
-    CCVector3d normalizedVector = getNormalizedVector();
-    double vectorNorm = normalizedVector.normd();
     double k = (double)this->m_coef / 100;
-
-    CCVector3d resultVector = CCVector3d(normalizedVector.x * k, normalizedVector.y * k, normalizedVector.z * k);
 
     this->m_vectorPoint = CCVector3d(k * (pointB.x - pointA.x) + pointA.x, k * (pointB.y - pointA.y) + pointA.y, k * (pointB.z - pointA.z) + pointA.z);
 
-    /*m_app->dispToConsole("[ccExametrics] k = " + QString::number(k), ccMainAppInterface::STD_CONSOLE_MESSAGE);
-    m_app->dispToConsole("[ccExametrics] normalizedVector = " + Utils::ccVector3ToString(normalizedVector)
-                        + " resultVector = " + Utils::ccVector3ToString(resultVector)
-                        + " pointA = " + Utils::ccVector3ToString(pointA)
-                        + " vectorPoint = " + Utils::ccVector3ToString(getVectorPoint())
-                        + " norm = " + QString::number(vectorNorm)
-                        , ccMainAppInterface::STD_CONSOLE_MESSAGE);*/
+	this->vectorPointCloud->addPoint(Utils::ccVectorDoubleToFloat(getVectorPoint()));
 
-    if(this->vectorPointCloud)
-    {
-    	this->vectorPointCloud->clear();
-        this->vectorPointCloud->reserve(1);
-        this->vectorPointCloud->addPoint(Utils::ccVectorDoubleToFloat(getVectorPoint()));
-    }
 
-    /* Then, calculte plan */
-    this->updatePlan();
+	if(!this->vectorPoint2DLabel)
+	{
+        std::cout << "new vectorpoint2dlabel";
 
-    //m_app->dispToConsole("[ccExametrics] plan (onParameterChanged)", ccMainAppInterface::STD_CONSOLE_MESSAGE);
-
+		this->vectorPoint2DLabel = new cc2DLabel("Vector point");
+        this->vectorPoint2DLabel->addPoint(this->vectorPointCloud, this->vectorPointCloud->size() - 1);
+        this->vectorPoint2DLabel->setVisible(true);
+        this->vectorPoint2DLabel->setDisplay(m_app->getActiveGLWindow());
+	}
 }
 
 void ccExametrics::updatePlan()
@@ -385,7 +384,8 @@ void ccExametrics::updatePlan()
 
     if(this->pPlane)
         m_app->removeFromDB(this->pPlane);
-    m_app->dispToConsole("[ccExametrics] Update plan", ccMainAppInterface::STD_CONSOLE_MESSAGE);
+
+    //m_app->dispToConsole("[ccExametrics] Update plan", ccMainAppInterface::STD_CONSOLE_MESSAGE);
 
 
 	// calcul du point en utilisant le vecteur

@@ -15,6 +15,7 @@
 #include <cc2DLabel.h>
 #include <ccPlane.h>
 #include <unistd.h>
+#include <iostream>
 
 #include "utils.h"
 
@@ -72,13 +73,15 @@ private:
 
 	double m_coef = 0;
 
+	ccHObject* exametricsGroup = nullptr;
+
 
 	/* Display purpose variables */
 
-	// normalized vector cloud (display purpose)
+	/*// normalized vector cloud (display purpose)
 	ccPointCloud* normalizedVectorCloud = nullptr;
 	// normalized vector polyline
-	ccPolyline* normalizedVectorPoly = nullptr;
+	ccPolyline* normalizedVectorPoly = nullptr;*/
 
 	// vector point cloud (display purpose)
 	ccPointCloud* vectorPointCloud = nullptr;
@@ -87,12 +90,10 @@ private:
 
 	// plan cloud (display purpose)
 	ccPointCloud* planCloud = nullptr;
-	// plan cloud points
-	//CCVector3d* planCloudPoints[4] = {nullptr};
 	// plan
 	ccPlane* pPlane = nullptr;
-	// plan transformation
-	//ccGLMatrix* planTransformation = nullptr;
+
+
 
 
 	/* Initialization methods */
@@ -108,6 +109,13 @@ private:
 	void onNormalizedVectorChanged();
 	void onVectorPointChanged(int coef);
 	void onParameterChanged(QWidget* w, double value);
+
+
+    /* Update methods */
+
+    // Update vector point display
+    void updatePoint();
+    // Update plan display
 	void updatePlan();
 
 
