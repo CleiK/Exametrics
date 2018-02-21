@@ -78,10 +78,10 @@ private:
 
 	/* Display purpose variables */
 
-	/*// normalized vector cloud (display purpose)
+	// normalized vector cloud (display purpose)
 	ccPointCloud* normalizedVectorCloud = nullptr;
 	// normalized vector polyline
-	ccPolyline* normalizedVectorPoly = nullptr;*/
+	ccPolyline* normalizedVectorPoly = nullptr;
 
 	// vector point cloud (display purpose)
 	ccPointCloud* vectorPointCloud = nullptr;

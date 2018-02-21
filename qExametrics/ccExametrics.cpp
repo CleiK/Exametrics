@@ -246,7 +246,7 @@ void ccExametrics::initializeDrawSettings()
 {
 	/* Normalized vector */
 
-	/*// new 2 points cloud
+	// new 2 points cloud
 	this->normalizedVectorCloud = new ccPointCloud("Normalized vector");
 
 	// reserve 2 points
@@ -267,7 +267,7 @@ void ccExametrics::initializeDrawSettings()
 	// where to display
 	this->normalizedVectorPoly->setDisplay(m_app->getActiveGLWindow());
 	// save in DB tree
-	m_app->addToDB(this->normalizedVectorPoly);*/
+	m_app->addToDB(this->normalizedVectorPoly);
 
     /* DB Tree (move somewhere else ?) */
 
@@ -283,7 +283,7 @@ void ccExametrics::initializeDrawSettings()
 	this->vectorPointCloud = new ccPointCloud("Vector point");
 	this->updatePoint();
 	//if(this->vectorPoint2DLabel)
-       // m_app->addToDB(this->vectorPoint2DLabel);
+        m_app->addToDB(this->vectorPoint2DLabel);
 
     /* Plan */
 
@@ -311,7 +311,7 @@ void ccExametrics::onToleranceSpbChanged(double value){ onParameterChanged(m_dlg
 /* Called when the parameters of the normalized vector are changing */
 void ccExametrics::onNormalizedVectorChanged()
 {
-	/*if(!this->normalizedVectorCloud)
+	if(!this->normalizedVectorCloud)
 		return;
 
 	// clear old points
@@ -322,7 +322,7 @@ void ccExametrics::onNormalizedVectorChanged()
 
 	// add points
     this->normalizedVectorCloud->addPoint(Utils::ccVectorDoubleToFloat(getNormalizedVectorPointA()));
-	this->normalizedVectorCloud->addPoint(Utils::ccVectorDoubleToFloat(getNormalizedVectorPointB()));*/
+	this->normalizedVectorCloud->addPoint(Utils::ccVectorDoubleToFloat(getNormalizedVectorPointB()));
 }
 
 /* Called when the parameter of the vector point is changing */
@@ -364,7 +364,7 @@ void ccExametrics::updatePoint()
 
 	if(!this->vectorPoint2DLabel)
 	{
-        std::cout << "new vectorpoint2dlabel";
+        //std::cout << "new vectorpoint2dlabel";
 
 		this->vectorPoint2DLabel = new cc2DLabel("Vector point");
         this->vectorPoint2DLabel->addPoint(this->vectorPointCloud, this->vectorPointCloud->size() - 1);
@@ -392,9 +392,9 @@ void ccExametrics::updatePlan()
     CCVector3d pointA = getNormalizedVectorPointA();
     CCVector3d pointB = getNormalizedVectorPointB();
     double k = (double)this->m_coef / 100;
-    // Plan equation: ax + by + cz + d = 0
     CCVector3d v = getNormalizedVector();
-    // Compute d from vector point
+
+    // Compute d from vector point Plan equation: ax + by + cz + d = 0
     double d = -(v.x * m_vectorPoint.x + v.y * m_vectorPoint.y + v.z * m_vectorPoint.z);
 
     // clear points
@@ -402,11 +402,35 @@ void ccExametrics::updatePlan()
     // reserve 4 points in memory
 	this->planCloud->reserve(4);
 	// assign points
-	for(double i = 1; i <= 4; i++)
+	/*for(double i = 1; i <= 4; i++)
 	{
         CCVector3d planPoint = CCVector3d(k * (pointB.x - pointA.x) + pointA.x, k * (pointB.y - pointA.y) + pointA.y, k * (pointB.z - pointA.z) + pointA.z);
         this->planCloud->addPoint(Utils::ccVectorDoubleToFloat(planPoint));
-	}
+	}*/
+
+	CCVector3d ortA = pointA.orthogonal();
+	double epsilon =0.00000001;
+
+
+         CCVector3d planPoint2 = CCVector3d(  k * (pointB.x - pointA.x) + pointA.x +   (epsilon),
+       k * (pointB.y - pointA.y) + pointA.y +     (epsilon),
+       k * (pointB.z - pointA.z) + pointA.z +     (epsilon)    );
+       this->planCloud->addPoint(Utils::ccVectorDoubleToFloat(planPoint2));
+
+
+        CCVector3d planPoint = CCVector3d(ortA.x, ortA.y,ortA.z);
+        this->planCloud->addPoint(Utils::ccVectorDoubleToFloat(planPoint));
+
+
+
+        CCVector3d planPoint3 = CCVector3d(  k * (pointB.x - pointA.x) + pointA.x ,
+       k * (pointB.y - pointA.y) + pointA.y,
+       k * (pointB.z - pointA.z) + pointA.z);
+       this->planCloud->addPoint(Utils::ccVectorDoubleToFloat(planPoint3));
+
+
+        CCVector3d planPoint1 = CCVector3d(-1*ortA.x, -1*ortA.y,-1*ortA.z);
+        this->planCloud->addPoint(Utils::ccVectorDoubleToFloat(planPoint1));
 
 
 
@@ -429,6 +453,21 @@ void ccExametrics::updatePlan()
     double rms = 0.0;
     // create plan by fit method on plancloud
     this->pPlane = ccPlane::Fit(this->planCloud, &rms);
+
+    m_app->dispToConsole(Utils::ccVector3ToString(this->pPlane->getCenter())
+                        , ccMainAppInterface::STD_CONSOLE_MESSAGE);
+
+    CCVector3d vectorPoint = this->getVectorPoint();
+    CCVector3 planCenter = this->pPlane->getCenter();
+    ccGLMatrix* transfo = new ccGLMatrix();
+    transfo->setTranslation(CCVector3d(vectorPoint.x - planCenter.x,
+                                       vectorPoint.y - planCenter.y,
+                                       vectorPoint.z - planCenter.z));
+    //this->pPlane->applyGLTransformation(transfo);
+    this->pPlane->applyGLTransformation_recursive(transfo);
+
+    m_app->dispToConsole(Utils::ccVector3ToString(this->getVectorPoint())
+                        , ccMainAppInterface::STD_CONSOLE_MESSAGE);
 
     if(this->pPlane)
     {
