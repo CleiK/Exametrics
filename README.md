@@ -13,8 +13,12 @@ CloudCompare plugin
 * Cloud points intersection with a plan
 
 ## Report
-* Project report
+* Stakeholders
+* Technology
+* Working method
+* Developments
 
 ## Development
 * Clone [CloudCompare](https://github.com/cloudcompare/cloudcompare)
 * Clone this repo and copy qExametrics in the plugins folder of CloudCompare
+* Refer to CloudCompare build informations
