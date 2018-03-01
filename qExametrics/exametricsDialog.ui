@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>404</width>
-    <height>222</height>
+    <height>225</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -172,7 +172,7 @@
           </sizepolicy>
          </property>
          <property name="decimals">
-          <number>4</number>
+          <number>3</number>
          </property>
          <property name="singleStep">
           <double>0.001000000000000</double>
@@ -201,7 +201,7 @@
           </sizepolicy>
          </property>
          <property name="decimals">
-          <number>4</number>
+          <number>3</number>
          </property>
          <property name="singleStep">
           <double>0.001000000000000</double>
@@ -233,7 +233,7 @@
           </sizepolicy>
          </property>
          <property name="decimals">
-          <number>4</number>
+          <number>3</number>
          </property>
          <property name="singleStep">
           <double>0.001000000000000</double>
@@ -291,7 +291,7 @@
           </sizepolicy>
          </property>
          <property name="decimals">
-          <number>4</number>
+          <number>3</number>
          </property>
          <property name="singleStep">
           <double>0.001000000000000</double>
@@ -320,7 +320,7 @@
           </sizepolicy>
          </property>
          <property name="decimals">
-          <number>4</number>
+          <number>3</number>
          </property>
          <property name="singleStep">
           <double>0.001000000000000</double>
@@ -352,7 +352,7 @@
           </sizepolicy>
          </property>
          <property name="decimals">
-          <number>4</number>
+          <number>3</number>
          </property>
          <property name="singleStep">
           <double>0.001000000000000</double>
@@ -451,7 +451,7 @@
        <item>
         <widget class="QDoubleSpinBox" name="toleranceSpb">
          <property name="decimals">
-          <number>4</number>
+          <number>3</number>
          </property>
          <property name="singleStep">
           <double>0.001000000000000</double>

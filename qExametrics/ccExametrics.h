@@ -14,29 +14,21 @@
 #include <ccPolyline.h>
 #include <cc2DLabel.h>
 #include <ccPlane.h>
+#include <ccBox.h>
+#include <ccClipBox.h>
 #include <unistd.h>
 #include <iostream>
+#include <iomanip>
 
 #include "utils.h"
 
+#define COEF_INIT 50
+#define TOLERANCE_INIT 0.05
 
-//#include "ccExametricsDialog.h"
+
 class ccExametricsDialog;
 
-//! Dummy qCC plugin
-/** Replace the 'qDummyPlugin' string by your own plugin class name
-	and then check 'qDummyPlugin.cpp' for more directions (you
-	have to fill-in the blank methods. The most important one is the
-	'getActions' method.  This method should return all actions
-	(QAction objects). CloudCompare will automatically add them to an
-	icon in the plugin toolbar and to an entry in the plugin menu
-	(if your plugin returns several actions, CC will create a dedicated
-	toolbar and sub-menu).
-	You are responsible to connect these actions to custom slots of your
-	plugin.
-	Look at the ccStdPluginInterface::m_app attribute to get access to
-	most of CC components (database, 3D views, console, etc.).
-**/
+
 class ccExametrics : public QObject, public ccStdPluginInterface
 {
 	Q_OBJECT
@@ -66,17 +58,22 @@ private:
 
     /* Members */
 
+    // Cloud limits
 	double m_boxXWidth = 0;
 	double m_boxYWidth = 0;
 
-	CCVector3d m_vectorPoint = CCVector3d(0,0,0);
-
+	// Coefficient for vector point placement
 	double m_coef = 0;
 
-	ccHObject* exametricsGroup = nullptr;
+	// Vector point
+	CCVector3d m_vectorPoint = CCVector3d(0,0,0);
+
+	// DB Tree Exametrics group
+	ccHObject* m_exametricsGroup = nullptr;
 
 
 	/* Display purpose variables */
+	bool canUpdateGraphics = false;
 
 	// normalized vector cloud (display purpose)
 	ccPointCloud* normalizedVectorCloud = nullptr;
@@ -89,17 +86,21 @@ private:
 	cc2DLabel* vectorPoint2DLabel = nullptr;
 
 	// plan cloud (display purpose)
-	ccPointCloud* planCloud = nullptr;
+	//ccPointCloud* planCloud = nullptr;
 	// plan
-	ccPlane* pPlane = nullptr;
+	//ccPlane* pPlane = nullptr;
 
+	ccClipBox* associatedBox= nullptr;
+	ccBox* box = nullptr;
 
+	// state
+	bool planeIsInDBTree = false;
 
 
 	/* Initialization methods */
 
 	// spb limits and initial values
-	void initializeParameterWidgets(ccBBox box);
+	void initializeParameterWidgets(ccHObject* lasFile);
 	// draw vectors and plans basic settings
 	void initializeDrawSettings();
 
@@ -111,16 +112,27 @@ private:
 	void onParameterChanged(QWidget* w, double value);
 
 
-    /* Update methods */
+    /* Display methods */
 
+    // Init vector display
+    void initVector();
+    // Update vector display
+    void updateVector();
+    // Init vector point display
+    void initPoint();
     // Update vector point display
     void updatePoint();
+
     // Update plan display
-	void updatePlan();
+	//void updatePlan();
+
+	// Update box display
+	void updateBox();
 
 
 	/* Getters */
 
+	double getTolerance();
     double getNormX();
 	double getNormY();
 	double getNormZ();
@@ -128,12 +140,16 @@ private:
 	CCVector3d getNormalizedVectorPointB();
 	CCVector3d getNormalizedVector();
 	CCVector3d getVectorPoint();
+	CCVector3d getVectorMediator();
+	CCVector3d getVectorCenter();
 
 
 	/* Other methods*/
 
 	//bool pointIsOnVector(CCVector3 vectorPointA, CCVector3 vectorPointB, CCVector3 myPoint);
-	void warn(QString s);
+	void logInfo(QString s);
+	void logWarn(QString s);
+	void logError(QString s);
 
 
 protected slots:
