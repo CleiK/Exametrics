@@ -9,6 +9,7 @@
 
 //qCC
 #include "../ccStdPluginInterface.h"
+#include <QProcess>
 #include <QDoubleSpinBox>
 #include <ccPointCloud.h>
 #include <ccPolyline.h>

@@ -153,43 +153,69 @@ void ccExametrics::onCompute()
 {
     this->logInfo("Compute!");
 
-    //get point cloud
-    ccPointCloud* cloud = static_cast<ccPointCloud*>(m_app->dbRootObject()); //cast to point cloud
-
     // Plan equation
     CCVector3 normalVector;
     PointCoordinateType d = 0;
     this->pPlane->getEquation(normalVector, d);
 
     // File name
-    QString fileName = this->rootLasFile->getName();
+    QString tmpFileName = this->rootLasFile->getName();
+    int parenthesis = tmpFileName.indexOf('(');
+    QString path = tmpFileName.right(tmpFileName.length() - parenthesis).remove('(').remove(')');
+    QString fileName  = tmpFileName.left(parenthesis - 1).prepend('/').prepend(path);
 
     ccGenericPointCloud* boxCloud = this->box->getAssociatedCloud();
+    float OP = 0; // distance 0 to Point
+    float OPmin = INFINITY, OPmax = 0;
+    const CCVector3* pMin = nullptr;
+    const CCVector3* pMax = nullptr;
     for(int i = 0; i < 24; i++)
     {
-        logInfo(Utils::ccVector3ToString(boxCloud->getPoint(i)));
+        const CCVector3* p = boxCloud->getPoint(i);
+        //logInfo(Utils::ccVector3ToString(boxCloud->getPoint(i)));
+
+        OP = sqrt(pow(p->x, 2) + pow(p->y, 2) + pow(p->z, 2));
+
+        if(OP < OPmin)
+        {
+            OPmin = OP;
+            pMin = p;
+        }
+        else if(OP > OPmax)
+        {
+            OPmax = OP;
+            pMax = p;
+        }
     }
 
-    /*logInfo("Plan equation: " + QString::number(normalVector.x) + "x + "
-            + QString::number(normalVector.y) + "y + "
-            + QString::number(normalVector.z) + "z + "
-            + QString::number(d));
-    logInfo("File name: " + fileName);
-    logInfo("Cloud limits: " + QString::number(this->m_boxXWidth)
-            + " x " + QString::number(this->m_boxYWidth)
-            + " Tolerance: " + QString::number(this->getTolerance()));*/
+    logInfo("Point min: " + Utils::ccVector3ToString(pMin));
+    logInfo("Point max: " + Utils::ccVector3ToString(pMax));
 
-    // 2 points
+    // Executing python intersection script
+    QProcess intersectionProcess;
+    QStringList arguments = QStringList() << "/home/cleik/Documents/Exametrics/cloudcompare-2/trunk/plugins/qExametrics/scripts/exa.py" << fileName
+                                          << QString::number(pMin->x) << QString::number(pMin->y) << QString::number(pMin->z)
+                                          << QString::number(pMax->x) << QString::number(pMax->y) << QString::number(pMax->z);
+    intersectionProcess.start("python", arguments);
 
-    /*if (!cloud)
+    logInfo("Creating intersection...");
+    intersectionProcess.waitForFinished();
+
+    int exitCode = intersectionProcess.exitCode();
+    if(exitCode != 0)
     {
-        this->logInfo("not a cloud :(");
-        return;
+        logWarn("An error occured while creating an intersection output file.");
+        logWarn(intersectionProcess.readAllStandardError());
     }
     else
     {
-        this->logInfo("is a cloud :)");
-    }*/
+        logInfo("Intersection file created.");
+    }
+
+    //intersectionProcess.readAllStandardOutput(); // Renvoie le contenu du buffer de sortie standard (cout)
+    //intersectionProcess.readAllStandardError(); // Renvoie le contenu  du buffer de sortie erreur (cerr)
+
+
 }
 
 /* Slot on dialog closed */
@@ -419,7 +445,7 @@ void ccExametrics::updatePlan()
         pPlane->setYWidth(this->m_boxYWidth);
 
         //make plane to add to display
-        pPlane->setVisible(true);
+        pPlane->setVisible(false);
         //pPlane->setSelectionBehavior(ccHObject::SELECTION_IGNORED);
 
         pPlane->setDisplay(m_app->getActiveGLWindow());
@@ -537,6 +563,10 @@ void ccExametrics::onCoefSliderChanged(int value)
 void ccExametrics::onToleranceSpbChanged(double value)
 {
     onParameterChanged(m_dlg->toleranceSpb, value);
+
+    if(!this->canUpdateGraphics)
+        return;
+
     this->updateBox();
 }
 
