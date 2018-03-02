@@ -87,8 +87,8 @@ void ccExametrics::doAction()
     m_dlg = new ccExametricsDialog((QWidget*)m_app->getMainWindow());
 
     // initialize parameters widgets with the object in db tree
-    ccHObject* rootLasFile = m_app->dbRootObject()->getChild(0);
-    initializeParameterWidgets(rootLasFile);
+    this->rootLasFile = m_app->dbRootObject()->getChild(0);
+    initializeParameterWidgets();
 
     //general
     ccExametricsDialog::connect(m_dlg->computeButton, SIGNAL(clicked()), this, SLOT(onCompute()));
@@ -156,7 +156,32 @@ void ccExametrics::onCompute()
     //get point cloud
     ccPointCloud* cloud = static_cast<ccPointCloud*>(m_app->dbRootObject()); //cast to point cloud
 
-    if (!cloud)
+    // Plan equation
+    CCVector3 normalVector;
+    PointCoordinateType d = 0;
+    this->pPlane->getEquation(normalVector, d);
+
+    // File name
+    QString fileName = this->rootLasFile->getName();
+
+    ccGenericPointCloud* boxCloud = this->box->getAssociatedCloud();
+    for(int i = 0; i < 24; i++)
+    {
+        logInfo(Utils::ccVector3ToString(boxCloud->getPoint(i)));
+    }
+
+    /*logInfo("Plan equation: " + QString::number(normalVector.x) + "x + "
+            + QString::number(normalVector.y) + "y + "
+            + QString::number(normalVector.z) + "z + "
+            + QString::number(d));
+    logInfo("File name: " + fileName);
+    logInfo("Cloud limits: " + QString::number(this->m_boxXWidth)
+            + " x " + QString::number(this->m_boxYWidth)
+            + " Tolerance: " + QString::number(this->getTolerance()));*/
+
+    // 2 points
+
+    /*if (!cloud)
     {
         this->logInfo("not a cloud :(");
         return;
@@ -164,7 +189,7 @@ void ccExametrics::onCompute()
     else
     {
         this->logInfo("is a cloud :)");
-    }
+    }*/
 }
 
 /* Slot on dialog closed */
@@ -177,11 +202,11 @@ void ccExametrics::onClose()
 }
 
 /* Initialize plan parameters at random values with min and max limits */
-void ccExametrics::initializeParameterWidgets(ccHObject* lasFile)
+void ccExametrics::initializeParameterWidgets()
 {
-    this->logInfo("Initializing parameters widgets with informations from \"" + lasFile->getName() + "\"");
+    this->logInfo("Initializing parameters widgets with informations from \"" + this->rootLasFile->getName() + "\"");
 
-    ccBBox box = lasFile->getBB_recursive();
+    ccBBox box = this->rootLasFile->getBB_recursive();
     CCVector3 minCorner = box.minCorner();
     CCVector3 maxCorner = box.maxCorner();
 
@@ -241,10 +266,9 @@ void ccExametrics::initializeDrawSettings()
 
     /* Plan */
     // no init method because the plan creation is a static method
-    //this->updatePlan();
+    this->updatePlan();
 
     this->updateBox();
-
 
     this->canUpdateGraphics = true;
 }
@@ -274,7 +298,6 @@ void ccExametrics::initVector()
     this->normalizedVectorPoly->setDisplay(m_app->getActiveGLWindow());
     // save in DB tree
     this->m_exametricsGroup->addChild(this->normalizedVectorPoly);
-    //m_app->addToDB(this->normalizedVectorPoly, false, true, false, false);
 }
 
 void ccExametrics::updateVector()
@@ -313,7 +336,6 @@ void ccExametrics::initPoint()
     this->vectorPoint2DLabel->addPoint(this->vectorPointCloud, this->vectorPointCloud->size() - 1);
 
     this->m_exametricsGroup->addChild(this->vectorPoint2DLabel);
-    //m_app->addToDB(this->vectorPoint2DLabel, false, true, false, false);
 }
 
 void ccExametrics::updatePoint()
@@ -334,7 +356,7 @@ void ccExametrics::updatePoint()
     this->vectorPointCloud->addPoint(Utils::ccVectorDoubleToFloat(getVectorPoint()));
 }
 
-/*void ccExametrics::updatePlan()
+void ccExametrics::updatePlan()
 {
     if(!this->planCloud)
     {
@@ -348,10 +370,10 @@ void ccExametrics::updatePoint()
         planeIsInDBTree = false;
     }
 
-    CCVector3d pointA = getNormalizedVectorPointA();
+
     // Generate Orthogonal vectors to create our plan (4 vectors)
     CCVector3d Mediatrice = getVectorMediator();
-    CCVector3d N = getVectorPoint() - pointA;
+    CCVector3d N = getVectorPoint() - getNormalizedVectorPointA();
 
     // clear points
     this->planCloud->clear();
@@ -380,19 +402,11 @@ void ccExametrics::updatePoint()
                                         vectorPoint.y - planCenter.y,
                                         vectorPoint.z - planCenter.z);
 
-    //float rotation = -90.0 * M_PI / 180;
-    //std::cout << "rotation: " << rotation << "\n";
-
-    //CCVector3 vc = getVectorCenter();
-    //CCVector3 myOrthogonal = CCVector3(vc.x)
-
-   // transfo->initFromParameters(rotation,
-    //                            Utils::ccVectorDoubleToFloat(getVectorMediator()),
-   //                             Utils::ccVectorDoubleToFloat(translation));
-   // //transfo->setTranslation(Utils::ccVectorDoubleToFloat(translation));
-   // transfo->shiftRotationCenter(this->pPlane->getCenter());
+    transfo->setTranslation(translation);
 
     this->pPlane->applyGLTransformation_recursive(transfo);
+
+    delete transfo;
 
 
     if(this->pPlane)
@@ -419,7 +433,7 @@ void ccExametrics::updatePoint()
     {
         this->logError("Failed to create plane.");
     }
-}*/
+}
 
 void ccExametrics::updateBox()
 {
@@ -429,18 +443,21 @@ void ccExametrics::updateBox()
         this->m_exametricsGroup->removeChild(this->box);
     }
 
-    // Vecteur définissant la box
-    CCVector3 N = CCVector3(this->m_boxXWidth, this->m_boxYWidth, this->getTolerance());
+    // dimensions définissant la box
+    CCVector3 dimensions = CCVector3(this->m_boxXWidth, this->m_boxYWidth, this->getTolerance());
     // Matrice liée
     ccGLMatrix matBox;
     // Création de la box
-    ccBox* tmpBox = new ccBox(N, &matBox, "Box");
+    ccBox* tmpBox = new ccBox(dimensions, &matBox, "tmpBox");
     // ClipBox associé
-    associatedBox = new ccClipBox("Box");
+    ccClipBox* associatedClipBox = new ccClipBox("tmpBox");
+    // Center
+    CCVector3 boxCenter = associatedClipBox->getBox().getCenter();
+
     // Delete tmp variable
     delete tmpBox;
+    delete associatedClipBox;
 
-    CCVector3 boxCenter = this->associatedBox->getBox().getCenter();
     CCVector3d vectorPoint = this->getVectorPoint();
     CCVector3d pointA = this->getNormalizedVectorPointA();
     CCVector3 boxTranslation = CCVector3(vectorPoint.x - boxCenter.x,
@@ -449,20 +466,21 @@ void ccExametrics::updateBox()
 
     CCVector3d boxVect = vectorPoint - pointA;
 
-    matBox = ccGLMatrix(CCVector3(0                       , 50 * -boxVect.z / m_coef, 50 * boxVect.y / m_coef),
-                        CCVector3(50 * -boxVect.z / m_coef, 0                       , 50 * boxVect.x / m_coef),
-                        CCVector3(0                       , 0                       , 1                      ),
-                        boxTranslation);
+    matBox = ccGLMatrix(CCVector3(0                       , 50 * -boxVect.z / m_coef, 50 * boxVect.y / m_coef), // colonne 0 rotation x
+                        CCVector3(50 * -boxVect.z / m_coef, 0                       , 50 * boxVect.x / m_coef), // colonne 1 rotation y
+                        CCVector3(0                       , 0                       , 1                      ), // colonne 2 rotation z
+                        boxTranslation);                                                                        // translation
 
     logInfo(Utils::ccVector3ToString(boxVect));
 
-    this->box = new ccBox(N, &matBox);
+    this->box = new ccBox(dimensions, &matBox);
 
     if(this->box)
     {
         box->showNormals(false);
         box->setColor(ccColor::blue);
         box->showColors(true);
+        box->enableStippling(true);
 
         //make box to add to display
 		box->setVisible(true);
@@ -536,7 +554,7 @@ void ccExametrics::onNormalizedVectorChanged()
     this->updatePoint();
 
     /* Then, compute plan display */
-    //this->updatePlan();
+    this->updatePlan();
 
 
     this->updateBox();
@@ -555,7 +573,7 @@ void ccExametrics::onVectorPointChanged(int coef)
     this->updatePoint();
 
     /* Then, compute plan display */
-    //this->updatePlan();
+    this->updatePlan();
 
     /* Compute box display */
     this->updateBox();
@@ -632,15 +650,17 @@ CCVector3d ccExametrics::getVectorPoint()
 
 CCVector3d ccExametrics::getVectorCenter()
 {
-    return CCVector3d ( (getNormalizedVectorPointA().x + getNormalizedVectorPointB().x) / 2,
-                        (getNormalizedVectorPointA().y + getNormalizedVectorPointB().y) / 2,
-                        (getNormalizedVectorPointA().z + getNormalizedVectorPointB().z) / 2);
+    CCVector3d A = getNormalizedVectorPointA();
+    CCVector3d B = getNormalizedVectorPointB();
+    return CCVector3d ( (A.x + B.x) / 2,
+                        (A.y + B.y) / 2,
+                        (A.z + B.z) / 2);
 }
 
 CCVector3d ccExametrics::getVectorMediator()
 {
-    CCVector3d AB = getNormalizedVector();
-    return CCVector3d (0, -AB.z, AB.y);
+    CCVector3d AB = getNormalizedVectorPointB() - getNormalizedVectorPointA();
+    return CCVector3d(getVectorCenter() * AB);
 }
 
 
