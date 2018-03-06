@@ -265,6 +265,11 @@ void ccExametrics::onCompute()
     {
         logInfo(intersectionProcess.readAllStandardOutput());
     }
+
+    //intersectionProcess.readAllStandardOutput(); // Renvoie le contenu du buffer de sortie standard (cout)
+    //intersectionProcess.readAllStandardError(); // Renvoie le contenu  du buffer de sortie erreur (cerr)
+
+
 }
 
 /* Slot on dialog closed */
