@@ -1,6 +1,0 @@
- onCompute
- 
-        char* name = // nom du fichier (.las)
-        CCVector3d v = getNormalizedVector();
-        double d = -(v.x * m_vectorPoint.x + v.y * m_vectorPoint.y + v.z * m_vectorPoint.z);
-        system("python exa.py " + name +" "+ v.x +" "+ v.y +" "+ v.z +" "+ d +" "+ 0.5); // call python 

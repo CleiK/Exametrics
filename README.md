@@ -7,10 +7,7 @@ Authors: Students from IMERIR (Perpignan) and ENIT (Tunis)
 CloudCompare plugin
 * Define a plan with a tolerance and preview it on your point cloud (las file)
 * Compute an output las file with the cloud points at the intersection of the plan
-
-## Python
-* ".las" files manipulation
-* Cloud points intersection with a plan
+* Python script: cloud points intersection with a plan
 
 ## Report
 * Stakeholders
@@ -22,3 +19,4 @@ CloudCompare plugin
 * Clone [CloudCompare](https://github.com/cloudcompare/cloudcompare)
 * Clone this repo and copy qExametrics in the plugins folder of CloudCompare
 * Refer to CloudCompare build informations
+* Python script: don't forget to copy qExametrics/script/exa.py to the build directory of the plugin

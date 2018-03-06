@@ -4,6 +4,8 @@
 #include <math.h>
 #include <CCGeom.h> // ccvector3
 #include <QString>
+#include <QList>
+#include <QPair>
 
 class Utils
 {
@@ -21,6 +23,17 @@ class Utils
 
         static CCVector3 ccVectorDoubleToFloat(CCVector3d v);
         //static CCVector3* ccPVectorDoubleToFloat(CCVector3d* v);
+
+        static CCVector3 ccVectorDoublePToFloat(CCVector3d* v);
+
+        struct QPairSecondComparer
+        {
+            template<typename T1, typename T2>
+            bool operator()(const QPair<T1,T2> & a, const QPair<T1,T2> & b) const
+            {
+                return a.second < b.second;
+            }
+        };
 };
 
 

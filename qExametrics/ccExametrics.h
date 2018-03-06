@@ -9,6 +9,8 @@
 
 //qCC
 #include "../ccStdPluginInterface.h"
+#include <QList>
+#include <QProcess>
 #include <QDoubleSpinBox>
 #include <ccPointCloud.h>
 #include <ccPolyline.h>
@@ -23,7 +25,7 @@
 #include "utils.h"
 
 #define COEF_INIT 50
-#define TOLERANCE_INIT 0.05
+#define TOLERANCE_INIT 0.5
 
 
 class ccExametricsDialog;
@@ -58,6 +60,8 @@ private:
 
     /* Members */
 
+    ccHObject* rootLasFile = nullptr;
+
     // Cloud limits
 	double m_boxXWidth = 0;
 	double m_boxYWidth = 0;
@@ -86,12 +90,16 @@ private:
 	cc2DLabel* vectorPoint2DLabel = nullptr;
 
 	// plan cloud (display purpose)
-	//ccPointCloud* planCloud = nullptr;
+	ccPointCloud* planCloud = nullptr;
 	// plan
-	//ccPlane* pPlane = nullptr;
+	ccPlane* pPlane = nullptr;
 
-	ccClipBox* associatedBox= nullptr;
 	ccBox* box = nullptr;
+
+
+    QList<ccPointCloud*>* tmpPointCloudList = nullptr;
+    QList<cc2DLabel*>* tmpPointList = nullptr;
+    const int N_point = 8;
 
 	// state
 	bool planeIsInDBTree = false;
@@ -100,7 +108,7 @@ private:
 	/* Initialization methods */
 
 	// spb limits and initial values
-	void initializeParameterWidgets(ccHObject* lasFile);
+	void initializeParameterWidgets();
 	// draw vectors and plans basic settings
 	void initializeDrawSettings();
 
@@ -124,7 +132,7 @@ private:
     void updatePoint();
 
     // Update plan display
-	//void updatePlan();
+	void updatePlan();
 
 	// Update box display
 	void updateBox();
@@ -146,7 +154,6 @@ private:
 
 	/* Other methods*/
 
-	//bool pointIsOnVector(CCVector3 vectorPointA, CCVector3 vectorPointB, CCVector3 myPoint);
 	void logInfo(QString s);
 	void logWarn(QString s);
 	void logError(QString s);

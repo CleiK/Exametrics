@@ -42,7 +42,8 @@ QString Utils::ccVector3ToString(const CCVector3* v)
 CCVector3 Utils::ccVectorDoubleToFloat(CCVector3d v)
 {
 	return CCVector3(v.x, v.y, v.z);
-}/*
+}
+
 /*CCVector3* Utils::ccPVectorDoubleToFloat(CCVector3d* v)
 {
 	v->x = (float)v->x;
@@ -50,3 +51,8 @@ CCVector3 Utils::ccVectorDoubleToFloat(CCVector3d v)
 	v->z = (float)v->z;
 	return v;
 }*/
+
+CCVector3 Utils::ccVectorDoublePToFloat(CCVector3d* v)
+{
+	return CCVector3(v->x, v->y, v->z);
+}

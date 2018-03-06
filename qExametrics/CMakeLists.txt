@@ -38,4 +38,11 @@ if (INSTALL_QEXAMETRICS_PLUGIN)
     #set dependencies to necessary libraries (see qPCV for an example)
     #target_link_libraries( ${PROJECT_NAME} LIB1 )
     #include_directories( ${LIB1_INCLUDE_DIR} )
+
+    #add_custom_command(TARGET ../../../CloudCompare
+    #   				   POST_BUILD 
+    #				   COMMAND ${CMAKE_COMMAND} -E 
+    #				   copy ${CMAKE_CURRENT_SOURCE_DIR}/scripts/exa.py
+    #				   ${CMAKE_INSTALL_PREFIX}/lib/cloudcompare/plugins)
+
 endif()

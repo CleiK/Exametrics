@@ -87,8 +87,8 @@ void ccExametrics::doAction()
     m_dlg = new ccExametricsDialog((QWidget*)m_app->getMainWindow());
 
     // initialize parameters widgets with the object in db tree
-    ccHObject* rootLasFile = m_app->dbRootObject()->getChild(0);
-    initializeParameterWidgets(rootLasFile);
+    this->rootLasFile = m_app->dbRootObject()->getChild(0);
+    initializeParameterWidgets();
 
     //general
     ccExametricsDialog::connect(m_dlg->computeButton, SIGNAL(clicked()), this, SLOT(onCompute()));
@@ -153,17 +153,117 @@ void ccExametrics::onCompute()
 {
     this->logInfo("Compute!");
 
-    //get point cloud
-    ccPointCloud* cloud = static_cast<ccPointCloud*>(m_app->dbRootObject()); //cast to point cloud
+    // Plan equation
+    CCVector3 normalVector;
+    PointCoordinateType d = 0;
+    this->pPlane->getEquation(normalVector, d);
 
-    if (!cloud)
+    // File name
+    QString tmpFileName = this->rootLasFile->getName();
+    int parenthesis = tmpFileName.indexOf('(');
+    QString path = tmpFileName.right(tmpFileName.length() - parenthesis).remove('(').remove(')');
+    QString fileName  = tmpFileName.left(parenthesis - 1).prepend('/').prepend(path);
+
+    ccGenericPointCloud* boxCloud = this->box->getAssociatedCloud();
+
+
+    bool duplicate = false;
+    QList<const CCVector3*>* points = new QList<const CCVector3*>();
+    float e = 0.0001;
+    for(int i = 0; i < 24; i++)
     {
-        this->logInfo("not a cloud :(");
-        return;
+        const CCVector3* p1 = boxCloud->getPoint(i);
+        //logInfo(Utils::ccVector3ToString(p1));
+        for(int j = 0; j < points->length(); j++)
+        {
+            const CCVector3* p2 = points->at(j);
+
+            if(p1 != p2)
+            {
+                //std::cout << "p1 != p2 ";
+                if(Utils::double_equals(p1->x, p2->x, e) && Utils::double_equals(p1->y, p2->y, e) && Utils::double_equals(p1->z, p2->z, e))
+                {
+                    //std::cout << "duplicate \n";
+                    duplicate = true;
+                }
+            }
+
+            if(duplicate)
+                break;
+        }
+
+        if(!duplicate)
+        {
+            //std::cout << "add point " << i << "\n";
+            points->append(p1);
+        }
+
+        duplicate = false;
+    }
+
+    // affichage des points (8 normalement)
+    for(int i = 0; i < points->length(); i++)
+    {
+        const CCVector3* p = points->at(i);
+
+        tmpPointCloudList->at(i)->clear();
+        tmpPointCloudList->at(i)->reserve(1);
+        tmpPointCloudList->at(i)->addPoint(CCVector3(p->x, p->y, p->z));
+
+        //logInfo(Utils::ccVector3ToString(points->at(i)) + " ");
+    }
+
+    // https://math.stackexchange.com/questions/1472049/check-if-a-point-is-inside-a-rectangular-shaped-area-3d
+    const CCVector3* P1 = points->at(5);
+    const CCVector3* P2 = points->at(3);
+    const CCVector3* P4 = points->at(1);
+    const CCVector3* P5 = points->at(0);
+
+
+    /*// selection d'un point
+    const CCVector3* P1 = points->at(0);
+    QList<QPair<const CCVector3*, float>>* pointsDistanceList = new QList<QPair<const CCVector3*, float>>();
+    pointsDistanceList->append(QPair<const CCVector3*, float>(P1, 0));
+    // 3 points les plus proches
+    for(int i = 1; i < points->length(); i++)
+    {
+        const CCVector3* P = points->at(i);
+        float d = sqrt(pow(P->x - P1->x, 2) + pow(P->y - P1->y, 2) + pow(P->z - P1->z, 2));
+        pointsDistanceList->append(QPair<const CCVector3*, float>(P, d));
+
+        //std::cout << pointsDistanceList->at(i).second << "\n";
+    }
+
+    qSort(pointsDistanceList->begin(), pointsDistanceList->end(), Utils::QPairSecondComparer());
+
+    const CCVector3* P2 = pointsDistanceList->at(1).first;
+    const CCVector3* P4 = pointsDistanceList->at(2).first;
+    const CCVector3* P5 = pointsDistanceList->at(3).first;*/
+
+
+    // Executing python intersection script
+    QProcess intersectionProcess;
+    QStringList arguments = QStringList() << "/home/cleik/Documents/Exametrics/cloudcompare-2/trunk/plugins/qExametrics/scripts/exa.py" << fileName
+                                          << QString::number(P1->x) << QString::number(P1->y) << QString::number(P1->z)
+                                          << QString::number(P2->x) << QString::number(P2->y) << QString::number(P2->z)
+                                          << QString::number(P4->x) << QString::number(P4->y) << QString::number(P4->z)
+                                          << QString::number(P5->x) << QString::number(P5->y) << QString::number(P5->z);
+
+    logInfo("python " + arguments.join(" "));
+    intersectionProcess.start("python", arguments);
+
+    logInfo("Creating intersection...");
+    intersectionProcess.waitForFinished();
+
+    int exitCode = intersectionProcess.exitCode();
+    if(exitCode != 0)
+    {
+        logWarn("An error occured while creating an intersection output file.");
+        logWarn(intersectionProcess.readAllStandardError());
     }
     else
     {
-        this->logInfo("is a cloud :)");
+        logInfo(intersectionProcess.readAllStandardOutput());
     }
 }
 
@@ -177,11 +277,11 @@ void ccExametrics::onClose()
 }
 
 /* Initialize plan parameters at random values with min and max limits */
-void ccExametrics::initializeParameterWidgets(ccHObject* lasFile)
+void ccExametrics::initializeParameterWidgets()
 {
-    this->logInfo("Initializing parameters widgets with informations from \"" + lasFile->getName() + "\"");
+    this->logInfo("Initializing parameters widgets with informations from \"" + this->rootLasFile->getName() + "\"");
 
-    ccBBox box = lasFile->getBB_recursive();
+    ccBBox box = this->rootLasFile->getBB_recursive();
     CCVector3 minCorner = box.minCorner();
     CCVector3 maxCorner = box.maxCorner();
 
@@ -233,6 +333,26 @@ void ccExametrics::initializeDrawSettings()
     m_app->addToDB(this->m_exametricsGroup, false, true, false, false);
 
 
+    // debut tmp point
+    tmpPointCloudList = new QList<ccPointCloud*>();
+    tmpPointList = new QList<cc2DLabel*>();
+
+    for(int i = 0; i < N_point; i++)
+    {
+        tmpPointCloudList->append(new ccPointCloud("Cloud Point " + QString::number(i)));
+        tmpPointCloudList->at(i)->reserve(1);
+        tmpPointCloudList->at(i)->addPoint(CCVector3(0,0,0));
+
+        tmpPointList->append(new cc2DLabel("Point " + QString::number(i)));
+        tmpPointList->at(i)->setVisible(true);
+        tmpPointList->at(i)->setDisplay(m_app->getActiveGLWindow());
+        tmpPointList->at(i)->addPoint(tmpPointCloudList->at(i), tmpPointCloudList->at(i)->size() - 1);
+
+        this->m_exametricsGroup->addChild(tmpPointList->at(i));
+    }
+
+
+
     /* Normalized vector */
     this->initVector();
 
@@ -241,10 +361,9 @@ void ccExametrics::initializeDrawSettings()
 
     /* Plan */
     // no init method because the plan creation is a static method
-    //this->updatePlan();
+    this->updatePlan();
 
     this->updateBox();
-
 
     this->canUpdateGraphics = true;
 }
@@ -274,7 +393,6 @@ void ccExametrics::initVector()
     this->normalizedVectorPoly->setDisplay(m_app->getActiveGLWindow());
     // save in DB tree
     this->m_exametricsGroup->addChild(this->normalizedVectorPoly);
-    //m_app->addToDB(this->normalizedVectorPoly, false, true, false, false);
 }
 
 void ccExametrics::updateVector()
@@ -313,7 +431,6 @@ void ccExametrics::initPoint()
     this->vectorPoint2DLabel->addPoint(this->vectorPointCloud, this->vectorPointCloud->size() - 1);
 
     this->m_exametricsGroup->addChild(this->vectorPoint2DLabel);
-    //m_app->addToDB(this->vectorPoint2DLabel, false, true, false, false);
 }
 
 void ccExametrics::updatePoint()
@@ -334,7 +451,7 @@ void ccExametrics::updatePoint()
     this->vectorPointCloud->addPoint(Utils::ccVectorDoubleToFloat(getVectorPoint()));
 }
 
-/*void ccExametrics::updatePlan()
+void ccExametrics::updatePlan()
 {
     if(!this->planCloud)
     {
@@ -348,10 +465,10 @@ void ccExametrics::updatePoint()
         planeIsInDBTree = false;
     }
 
-    CCVector3d pointA = getNormalizedVectorPointA();
+
     // Generate Orthogonal vectors to create our plan (4 vectors)
     CCVector3d Mediatrice = getVectorMediator();
-    CCVector3d N = getVectorPoint() - pointA;
+    CCVector3d N = getVectorPoint() - getNormalizedVectorPointA();
 
     // clear points
     this->planCloud->clear();
@@ -380,19 +497,11 @@ void ccExametrics::updatePoint()
                                         vectorPoint.y - planCenter.y,
                                         vectorPoint.z - planCenter.z);
 
-    //float rotation = -90.0 * M_PI / 180;
-    //std::cout << "rotation: " << rotation << "\n";
-
-    //CCVector3 vc = getVectorCenter();
-    //CCVector3 myOrthogonal = CCVector3(vc.x)
-
-   // transfo->initFromParameters(rotation,
-    //                            Utils::ccVectorDoubleToFloat(getVectorMediator()),
-   //                             Utils::ccVectorDoubleToFloat(translation));
-   // //transfo->setTranslation(Utils::ccVectorDoubleToFloat(translation));
-   // transfo->shiftRotationCenter(this->pPlane->getCenter());
+    transfo->setTranslation(translation);
 
     this->pPlane->applyGLTransformation_recursive(transfo);
+
+    delete transfo;
 
 
     if(this->pPlane)
@@ -405,7 +514,7 @@ void ccExametrics::updatePoint()
         pPlane->setYWidth(this->m_boxYWidth);
 
         //make plane to add to display
-        pPlane->setVisible(true);
+        pPlane->setVisible(false);
         //pPlane->setSelectionBehavior(ccHObject::SELECTION_IGNORED);
 
         pPlane->setDisplay(m_app->getActiveGLWindow());
@@ -419,7 +528,7 @@ void ccExametrics::updatePoint()
     {
         this->logError("Failed to create plane.");
     }
-}*/
+}
 
 void ccExametrics::updateBox()
 {
@@ -429,18 +538,21 @@ void ccExametrics::updateBox()
         this->m_exametricsGroup->removeChild(this->box);
     }
 
-    // Vecteur définissant la box
-    CCVector3 N = CCVector3(this->m_boxXWidth, this->m_boxYWidth, this->getTolerance());
+    // dimensions définissant la box
+    CCVector3 dimensions = CCVector3(this->m_boxXWidth, this->m_boxYWidth, this->getTolerance());
     // Matrice liée
     ccGLMatrix matBox;
     // Création de la box
-    ccBox* tmpBox = new ccBox(N, &matBox, "Box");
+    ccBox* tmpBox = new ccBox(dimensions, &matBox, "tmpBox");
     // ClipBox associé
-    associatedBox = new ccClipBox("Box");
+    ccClipBox* associatedClipBox = new ccClipBox("tmpBox");
+    // Center
+    CCVector3 boxCenter = associatedClipBox->getBox().getCenter();
+
     // Delete tmp variable
     delete tmpBox;
+    delete associatedClipBox;
 
-    CCVector3 boxCenter = this->associatedBox->getBox().getCenter();
     CCVector3d vectorPoint = this->getVectorPoint();
     CCVector3d pointA = this->getNormalizedVectorPointA();
     CCVector3 boxTranslation = CCVector3(vectorPoint.x - boxCenter.x,
@@ -449,20 +561,21 @@ void ccExametrics::updateBox()
 
     CCVector3d boxVect = vectorPoint - pointA;
 
-    matBox = ccGLMatrix(CCVector3(0                       , 50 * -boxVect.z / m_coef, 50 * boxVect.y / m_coef),
-                        CCVector3(50 * -boxVect.z / m_coef, 0                       , 50 * boxVect.x / m_coef),
-                        CCVector3(0                       , 0                       , 1                      ),
-                        boxTranslation);
+    matBox = ccGLMatrix(CCVector3(0                       , 50 * -boxVect.z / m_coef, 50 * boxVect.y / m_coef), // colonne 0 rotation x
+                        CCVector3(50 * -boxVect.z / m_coef, 0                       , 50 * boxVect.x / m_coef), // colonne 1 rotation y
+                        CCVector3(0                       , 0                       , 1                      ), // colonne 2 rotation z
+                        boxTranslation);                                                                        // translation
 
     logInfo(Utils::ccVector3ToString(boxVect));
 
-    this->box = new ccBox(N, &matBox);
+    this->box = new ccBox(dimensions, &matBox);
 
     if(this->box)
     {
         box->showNormals(false);
         box->setColor(ccColor::blue);
         box->showColors(true);
+        box->enableStippling(true);
 
         //make box to add to display
 		box->setVisible(true);
@@ -519,6 +632,10 @@ void ccExametrics::onCoefSliderChanged(int value)
 void ccExametrics::onToleranceSpbChanged(double value)
 {
     onParameterChanged(m_dlg->toleranceSpb, value);
+
+    if(!this->canUpdateGraphics)
+        return;
+
     this->updateBox();
 }
 
@@ -536,7 +653,7 @@ void ccExametrics::onNormalizedVectorChanged()
     this->updatePoint();
 
     /* Then, compute plan display */
-    //this->updatePlan();
+    this->updatePlan();
 
 
     this->updateBox();
@@ -555,7 +672,7 @@ void ccExametrics::onVectorPointChanged(int coef)
     this->updatePoint();
 
     /* Then, compute plan display */
-    //this->updatePlan();
+    this->updatePlan();
 
     /* Compute box display */
     this->updateBox();
@@ -632,15 +749,17 @@ CCVector3d ccExametrics::getVectorPoint()
 
 CCVector3d ccExametrics::getVectorCenter()
 {
-    return CCVector3d ( (getNormalizedVectorPointA().x + getNormalizedVectorPointB().x) / 2,
-                        (getNormalizedVectorPointA().y + getNormalizedVectorPointB().y) / 2,
-                        (getNormalizedVectorPointA().z + getNormalizedVectorPointB().z) / 2);
+    CCVector3d A = getNormalizedVectorPointA();
+    CCVector3d B = getNormalizedVectorPointB();
+    return CCVector3d ( (A.x + B.x) / 2,
+                        (A.y + B.y) / 2,
+                        (A.z + B.z) / 2);
 }
 
 CCVector3d ccExametrics::getVectorMediator()
 {
-    CCVector3d AB = getNormalizedVector();
-    return CCVector3d (0, -AB.z, AB.y);
+    CCVector3d AB = getNormalizedVectorPointB() - getNormalizedVectorPointA();
+    return CCVector3d(getVectorCenter() * AB);
 }
 
 
