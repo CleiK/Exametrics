@@ -243,7 +243,7 @@ void ccExametrics::onCompute()
 
     // Executing python intersection script
     QProcess intersectionProcess;
-    QStringList arguments = QStringList() << "/home/cleik/Documents/Exametrics/cloudcompare-2/trunk/plugins/qExametrics/scripts/exa.py" << fileName
+    QStringList arguments = QStringList() << "/usr/local/lib/cloudcompare/plugins/exa.py" << fileName
                                           << QString::number(P1->x) << QString::number(P1->y) << QString::number(P1->z)
                                           << QString::number(P2->x) << QString::number(P2->y) << QString::number(P2->z)
                                           << QString::number(P4->x) << QString::number(P4->y) << QString::number(P4->z)

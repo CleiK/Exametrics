@@ -19,4 +19,4 @@ CloudCompare plugin
 * Clone [CloudCompare](https://github.com/cloudcompare/cloudcompare)
 * Clone this repo and copy qExametrics in the plugins folder of CloudCompare
 * Refer to CloudCompare build informations
-* Python script: don't forget to copy qExametrics/script/exa.py to the build directory of the plugin
+* Python script: don't forget to copy qExametrics/script/exa.py to /usr/local/lib/cloudcompare/plugins/
