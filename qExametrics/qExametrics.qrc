@@ -1,5 +1,7 @@
 <RCC>
-  <qresource prefix="/CC/plugin/qExametrics" >
-    <file>exametrics_icon.png</file>
-  </qresource>
+    <qresource prefix="/CC/plugin/qExametrics">
+        <file>img/exametrics_icon.png</file>
+        <file>img/loading_1.gif</file>
+        <file>img/loading_2.gif</file>
+    </qresource>
 </RCC>

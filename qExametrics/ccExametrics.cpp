@@ -59,7 +59,10 @@ void ccExametrics::getActions(QActionGroup& group)
 
     group.addAction(m_action);
 
-    this->logInfo("Plugin initialized successfully.");
+
+    this->logger = new ExaLog(m_app);
+
+    logger->logInfo("Plugin succesfully initialized!");
 }
 
 //This is an example of an action's slot called when the corresponding action
@@ -80,15 +83,19 @@ void ccExametrics::doAction()
     //check valid window
     if (!m_app->getActiveGLWindow())
     {
-        this->logError("Could not find valid 3D window.");
+        logger->logError("Could not find valid 3D window.");
         return;
     }
+
+
 
     //bind GUI events
     m_dlg = new ccExametricsDialog((QWidget*)m_app->getMainWindow());
 
     // initialize parameters widgets with the object in db tree
     this->rootLasFile = m_app->dbRootObject()->getChild(0);
+    // for random values
+    srand (time(NULL));
     initializeParameterWidgets();
 
     //general
@@ -102,6 +109,7 @@ void ccExametrics::doAction()
     ccExametricsDialog::connect(m_dlg->spbYB, SIGNAL(valueChanged(double)), this, SLOT(onSpbYBChanged(double)));
     ccExametricsDialog::connect(m_dlg->spbZB, SIGNAL(valueChanged(double)), this, SLOT(onSpbZBChanged(double)));
     ccExametricsDialog::connect(m_dlg->coefSlider, SIGNAL(valueChanged(int)), this, SLOT(onCoefSliderChanged(int)));
+    ccExametricsDialog::connect(m_dlg->spbCoef, SIGNAL(valueChanged(int)), this, SLOT(onCoefSpinBoxChanged(int)));
     ccExametricsDialog::connect(m_dlg->toleranceSpb, SIGNAL(valueChanged(double)), this, SLOT(onToleranceSpbChanged(double)));
 
 
@@ -138,7 +146,11 @@ void ccExametrics::stop()
         m_app->getActiveGLWindow()->redraw(true, false);
     }
 
+    workerThread.quit();
+    workerThread.wait();
+
     m_dlg = nullptr;
+
 
     ccStdPluginInterface::stop();
 }
@@ -146,13 +158,34 @@ void ccExametrics::stop()
 /* Return the plugin icon */
 QIcon ccExametrics::getIcon() const
 {
-    return QIcon(":/CC/plugin/qExametrics/exametrics_icon.png");
+    return QIcon(":/CC/plugin/qExametrics/img/exametrics_icon.png");
+}
+
+void ccExametrics::setGifLoading(bool enabled)
+{
+    if(enabled)
+    {
+        if(!loadingGifMovie)
+        {
+            loadingGifMovie = new QMovie(":/CC/plugin/qExametrics/img/loading_2.gif");
+            m_dlg->lblLoading->setMovie(loadingGifMovie);
+        }
+
+        loadingGifMovie->start();
+        m_dlg->lblLoading->setVisible(true);
+    }
+    else
+    {
+        loadingGifMovie->stop();
+        m_dlg->lblLoading->setVisible(false);
+    }
 }
 
 /* Slot on Compute button click */
 void ccExametrics::onCompute()
 {
-    this->logInfo("Compute!");
+    setGifLoading(true);
+
 
     // Plan equation
     CCVector3 normalVector;
@@ -165,9 +198,11 @@ void ccExametrics::onCompute()
     QString path = tmpFileName.right(tmpFileName.length() - parenthesis).remove('(').remove(')');
     QString fileName  = tmpFileName.left(parenthesis - 1).prepend('/').prepend(path);
 
+    // Current cloud
     ccGenericPointCloud* boxCloud = this->box->getAssociatedCloud();
 
 
+    // Retrieve box points and remove duplicates to get 8 points instead of 24
     bool duplicate = false;
     QList<const CCVector3*>* points = new QList<const CCVector3*>();
     float e = 0.0001;
@@ -202,16 +237,18 @@ void ccExametrics::onCompute()
         duplicate = false;
     }
 
-    // affichage des points (8 normalement)
-    for(int i = 0; i < points->length(); i++)
+    // Display points
+    if(DEBUG_BOX_POINTS)
     {
-        const CCVector3* p = points->at(i);
+        // affichage des points (8 normalement)
+        for(int i = 0; i < points->length(); i++)
+        {
+            const CCVector3* p = points->at(i);
 
-        tmpPointCloudList->at(i)->clear();
-        tmpPointCloudList->at(i)->reserve(1);
-        tmpPointCloudList->at(i)->addPoint(CCVector3(p->x, p->y, p->z));
-
-        //logInfo(Utils::ccVector3ToString(points->at(i)) + " ");
+            this->tmpPointCloudList->at(i)->clear();
+            this->tmpPointCloudList->at(i)->reserve(1);
+            this->tmpPointCloudList->at(i)->addPoint(CCVector3(p->x, p->y, p->z));
+        }
     }
 
     // https://math.stackexchange.com/questions/1472049/check-if-a-point-is-inside-a-rectangular-shaped-area-3d
@@ -221,57 +258,41 @@ void ccExametrics::onCompute()
     const CCVector3* P5 = points->at(0);
 
 
-    /*// selection d'un point
-    const CCVector3* P1 = points->at(0);
-    QList<QPair<const CCVector3*, float>>* pointsDistanceList = new QList<QPair<const CCVector3*, float>>();
-    pointsDistanceList->append(QPair<const CCVector3*, float>(P1, 0));
-    // 3 points les plus proches
-    for(int i = 1; i < points->length(); i++)
-    {
-        const CCVector3* P = points->at(i);
-        float d = sqrt(pow(P->x - P1->x, 2) + pow(P->y - P1->y, 2) + pow(P->z - P1->z, 2));
-        pointsDistanceList->append(QPair<const CCVector3*, float>(P, d));
-
-        //std::cout << pointsDistanceList->at(i).second << "\n";
-    }
-
-    qSort(pointsDistanceList->begin(), pointsDistanceList->end(), Utils::QPairSecondComparer());
-
-    const CCVector3* P2 = pointsDistanceList->at(1).first;
-    const CCVector3* P4 = pointsDistanceList->at(2).first;
-    const CCVector3* P5 = pointsDistanceList->at(3).first;*/
-
-
-    // Executing python intersection script
-    QProcess intersectionProcess;
+    // Arguments for python intersection script
     QStringList arguments = QStringList() << "/usr/local/lib/cloudcompare/plugins/exa.py" << fileName
                                           << QString::number(P1->x) << QString::number(P1->y) << QString::number(P1->z)
                                           << QString::number(P2->x) << QString::number(P2->y) << QString::number(P2->z)
                                           << QString::number(P4->x) << QString::number(P4->y) << QString::number(P4->z)
                                           << QString::number(P5->x) << QString::number(P5->y) << QString::number(P5->z);
 
-    logInfo("python " + arguments.join(" "));
-    intersectionProcess.start("python", arguments);
-
-    logInfo("Creating intersection...");
-    intersectionProcess.waitForFinished();
-
-    int exitCode = intersectionProcess.exitCode();
-    if(exitCode != 0)
+    // configure worker that will do the intersection in a thread
+    if(!this->exaWorker)
     {
-        logWarn("An error occured while creating an intersection output file.");
-        logWarn(intersectionProcess.readAllStandardError());
-    }
-    else
-    {
-        logInfo(intersectionProcess.readAllStandardOutput());
+        s//td::cout << "new exaworker\n";
+        this->exaWorker = new ExaWorker();
+        this->exaWorker->moveToThread(&this->workerThread);
+        connect(&workerThread, SIGNAL(finished()), this->exaWorker, SLOT(deleteLater()));
+        connect(this, SIGNAL(operateWorker(QStringList, ExaLog*)), this->exaWorker, SLOT(doWork(QStringList, ExaLog*)));
+        connect(this->exaWorker, SIGNAL(resultReady(QString)), this, SLOT(workerDone(QString)));
     }
 
-    //intersectionProcess.readAllStandardOutput(); // Renvoie le contenu du buffer de sortie standard (cout)
-    //intersectionProcess.readAllStandardError(); // Renvoie le contenu  du buffer de sortie erreur (cerr)
+    //std::cout << "before workerThread start\n";
 
-
+    // Start thread
+    this->workerThread.start();
+    // Emit signal to start the work
+    emit operateWorker(arguments, this->logger);
 }
+
+// Threaded worker done
+void ccExametrics::workerDone(const QString &)
+{
+    //std::cout << "worker done\n";
+    setGifLoading(false);
+    /*workerThread.quit();
+    workerThread.wait();*/
+}
+
 
 /* Slot on dialog closed */
 void ccExametrics::onClose()
@@ -285,7 +306,7 @@ void ccExametrics::onClose()
 /* Initialize plan parameters at random values with min and max limits */
 void ccExametrics::initializeParameterWidgets()
 {
-    this->logInfo("Initializing parameters widgets with informations from \"" + this->rootLasFile->getName() + "\"");
+    logger->logInfo("Initializing parameters widgets with informations from \"" + this->rootLasFile->getName() + "\"");
 
     ccBBox box = this->rootLasFile->getBB_recursive();
     CCVector3 minCorner = box.minCorner();
@@ -300,7 +321,7 @@ void ccExametrics::initializeParameterWidgets()
     this->m_boxYWidth = yBox;
 
 
-    m_dlg->spbXA->setMinimum(minCorner.x); // minCorner.x
+    m_dlg->spbXA->setMinimum(minCorner.x);
     m_dlg->spbYA->setMinimum(minCorner.y);
     m_dlg->spbZA->setMinimum(minCorner.z);
     m_dlg->spbXA->setMaximum(maxCorner.x);
@@ -314,6 +335,20 @@ void ccExametrics::initializeParameterWidgets()
     m_dlg->spbYB->setMaximum(maxCorner.y);
     m_dlg->spbZB->setMaximum(maxCorner.z);
 
+    m_dlg->spbXA_2->setMinimum(minCorner.x);
+    m_dlg->spbYA_2->setMinimum(minCorner.y);
+    m_dlg->spbZA_2->setMinimum(minCorner.z);
+    m_dlg->spbXA_2->setMaximum(maxCorner.x);
+    m_dlg->spbYA_2->setMaximum(maxCorner.y);
+    m_dlg->spbZA_2->setMaximum(maxCorner.z);
+
+    m_dlg->spbXB_2->setMinimum(minCorner.x);
+    m_dlg->spbYB_2->setMinimum(minCorner.y);
+    m_dlg->spbZB_2->setMinimum(minCorner.z);
+    m_dlg->spbXB_2->setMaximum(maxCorner.x);
+    m_dlg->spbYB_2->setMaximum(maxCorner.y);
+    m_dlg->spbZB_2->setMaximum(maxCorner.z);
+
     // random vector
     m_dlg->spbXA->setValue(Utils::frand_a_b(minCorner.x, maxCorner.x));
     m_dlg->spbYA->setValue(Utils::frand_a_b(minCorner.x, maxCorner.x));
@@ -322,13 +357,28 @@ void ccExametrics::initializeParameterWidgets()
     m_dlg->spbYB->setValue(Utils::frand_a_b(minCorner.x, maxCorner.x));
     m_dlg->spbZB->setValue(Utils::frand_a_b(minCorner.x, maxCorner.x));
 
+    m_dlg->spbXA_2->setValue(Utils::frand_a_b(minCorner.x, maxCorner.x));
+    m_dlg->spbYA_2->setValue(Utils::frand_a_b(minCorner.x, maxCorner.x));
+    m_dlg->spbZA_2->setValue(Utils::frand_a_b(minCorner.x, maxCorner.x));
+    m_dlg->spbXB_2->setValue(Utils::frand_a_b(minCorner.x, maxCorner.x));
+    m_dlg->spbYB_2->setValue(Utils::frand_a_b(minCorner.x, maxCorner.x));
+    m_dlg->spbZB_2->setValue(Utils::frand_a_b(minCorner.x, maxCorner.x));
+
     // vector point distance coefficient
     m_dlg->coefSlider->setValue(COEF_INIT);
-    m_dlg->lblCoef->setText(QString::number(COEF_INIT) + "%");
+    m_dlg->spbCoef->setValue(COEF_INIT);
+
+    m_dlg->coefSlider_2->setValue(COEF_INIT);
+    m_dlg->spbCoef_2->setValue(COEF_INIT);
+
     this->m_coef = COEF_INIT;
 
     // tolerance
     m_dlg->toleranceSpb->setValue(TOLERANCE_INIT);
+    m_dlg->toleranceSpb_2->setValue(TOLERANCE_INIT);
+
+    m_dlg->tabP2->setEnabled(false);
+    m_dlg->rdb2Plan->setEnabled(false);
 }
 
 /* Initialize draw settings for normalized vector, point and plan display */
@@ -338,25 +388,42 @@ void ccExametrics::initializeDrawSettings()
     this->m_exametricsGroup = new ccHObject("Exametrics");
     m_app->addToDB(this->m_exametricsGroup, false, true, false, false);
 
-
-    // debut tmp point
-    tmpPointCloudList = new QList<ccPointCloud*>();
-    tmpPointList = new QList<cc2DLabel*>();
-
-    for(int i = 0; i < N_point; i++)
+    if(DEBUG_BOX_POINTS || DEBUG_PLAN)
     {
-        tmpPointCloudList->append(new ccPointCloud("Cloud Point " + QString::number(i)));
-        tmpPointCloudList->at(i)->reserve(1);
-        tmpPointCloudList->at(i)->addPoint(CCVector3(0,0,0));
-
-        tmpPointList->append(new cc2DLabel("Point " + QString::number(i)));
-        tmpPointList->at(i)->setVisible(true);
-        tmpPointList->at(i)->setDisplay(m_app->getActiveGLWindow());
-        tmpPointList->at(i)->addPoint(tmpPointCloudList->at(i), tmpPointCloudList->at(i)->size() - 1);
-
-        this->m_exametricsGroup->addChild(tmpPointList->at(i));
+        if(DEBUG_BOX_POINTS && DEBUG_PLAN)
+        {
+            logger->logInfo("Debug enabled for box points and positionning plan.");
+        }
+        else if(DEBUG_BOX_POINTS)
+        {
+            logger->logInfo("Debug enabled for box points.");
+        }
+        else
+        {
+            logger->logInfo("Debug enabled for positionning plan.");
+        }
     }
 
+
+    if(DEBUG_BOX_POINTS)
+    {
+        tmpPointCloudList = new QList<ccPointCloud*>();
+        tmpPointList = new QList<cc2DLabel*>();
+
+        for(int i = 0; i < N_point; i++)
+        {
+            tmpPointCloudList->append(new ccPointCloud("Cloud Point " + QString::number(i)));
+            tmpPointCloudList->at(i)->reserve(1);
+            tmpPointCloudList->at(i)->addPoint(CCVector3(0,0,0));
+
+            tmpPointList->append(new cc2DLabel("Point " + QString::number(i)));
+            tmpPointList->at(i)->setVisible(true);
+            tmpPointList->at(i)->setDisplay(m_app->getActiveGLWindow());
+            tmpPointList->at(i)->addPoint(tmpPointCloudList->at(i), tmpPointCloudList->at(i)->size() - 1);
+
+            this->m_exametricsGroup->addChild(tmpPointList->at(i));
+        }
+    }
 
 
     /* Normalized vector */
@@ -366,22 +433,12 @@ void ccExametrics::initializeDrawSettings()
     this->initPoint();
 
     /* Plan */
-    // no init method because the plan creation is a static method
     this->updatePlan();
 
+    /* Box */
     this->updateBox();
 
     this->canUpdateGraphics = true;
-//    this->pPlane->prepareDisplayForRefresh();
-//    this->box->prepareDisplayForRefresh();
-//
-//    this->pPlane->prepareDisplayForRefresh_recursive();
-//    this->box->prepareDisplayForRefresh_recursive();
-//    this->vectorPointCloud->prepareDisplayForRefresh();
-//    this->vectorPointCloud->prepareDisplayForRefresh_recursive();
-//    m_app->refreshAll();
-//
-//    m_app->updateUI();
 }
 
 
@@ -405,6 +462,7 @@ void ccExametrics::initVector()
     ccColor::Rgb lineColor = ccColor::red ;
     this->normalizedVectorPoly->setColor(lineColor);
     this->normalizedVectorPoly->showColors(true);
+    this->normalizedVectorPoly->setWidth(2.0);
     // where to display
     this->normalizedVectorPoly->setDisplay(m_app->getActiveGLWindow());
     // save in DB tree
@@ -531,7 +589,7 @@ void ccExametrics::updatePlan()
         pPlane->setXWidth(this->m_boxXWidth);
         pPlane->setYWidth(this->m_boxYWidth);
         //make plane to add to display
-        pPlane->setVisible(true);
+        pPlane->setVisible(DEBUG_PLAN);
         //pPlane->setSelectionBehavior(ccHObject::SELECTION_IGNORED);
 
         pPlane->setDisplay(m_app->getActiveGLWindow());
@@ -544,7 +602,7 @@ void ccExametrics::updatePlan()
     }
     else
     {
-        this->logError("Failed to create plane.");
+        logger->logError("Failed to create plane.");
     }
 }
 
@@ -625,6 +683,11 @@ void ccExametrics::onCoefSliderChanged(int value)
     onVectorPointChanged(value);
 }
 
+void ccExametrics::onCoefSpinBoxChanged(int value)
+{
+    onVectorPointChanged(value);
+}
+
 /* Called when tolerance spinbox changed value */
 void ccExametrics::onToleranceSpbChanged(double value)
 {
@@ -649,10 +712,9 @@ void ccExametrics::onNormalizedVectorChanged()
     /* Compute vector point display */
     this->updatePoint();
 
-    /* Then, compute plan display */
     this->updatePlan();
 
-
+    /* Then, compute box display */
     this->updateBox();
 }
 
@@ -660,7 +722,9 @@ void ccExametrics::onNormalizedVectorChanged()
 void ccExametrics::onVectorPointChanged(int coef)
 {
     this->m_coef = coef;
-    m_dlg->lblCoef->setText(QString::number(this->m_coef) + "%");
+    //m_dlg->lblCoef->setText(QString::number(this->m_coef) + "%");
+    m_dlg->coefSlider->setValue(this->m_coef);
+    m_dlg->spbCoef->setValue(this->m_coef);
 
     if(!this->canUpdateGraphics)
         return;
@@ -668,7 +732,6 @@ void ccExametrics::onVectorPointChanged(int coef)
     /* Compute vector point display */
     this->updatePoint();
 
-    /* Then, compute plan display */
     this->updatePlan();
 
     /* Compute box display */
@@ -681,21 +744,6 @@ void ccExametrics::onParameterChanged(QWidget* w, double value)
 
 }
 
-
-void ccExametrics::logInfo(QString s)
-{
-    m_app->dispToConsole("[ccExametrics] " + s, ccMainAppInterface::STD_CONSOLE_MESSAGE);
-}
-
-void ccExametrics::logWarn(QString s)
-{
-    m_app->dispToConsole("[ccExametrics] " + s, ccMainAppInterface::WRN_CONSOLE_MESSAGE);
-}
-
-void ccExametrics::logError(QString s)
-{
-    m_app->dispToConsole("[ccExametrics] " + s, ccMainAppInterface::ERR_CONSOLE_MESSAGE);
-}
 
 double ccExametrics::getTolerance()
 {

@@ -250,7 +250,7 @@ if empty is False:
 	outFile.set_gps_time(allg)
     
 	outFile.close()
-	sys.stdout.write("File created, " + str(pointInCount) + " points found\n")
+	sys.stdout.write("File created, " + str(pointInCount) + " points found (" + newFileName + ")")
 else:
-	sys.stdout.write("Nothing to add, file not created\n")
+	sys.stdout.write("No points found, file not created")
 

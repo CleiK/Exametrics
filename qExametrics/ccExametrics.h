@@ -9,6 +9,8 @@
 
 //qCC
 #include "../ccStdPluginInterface.h"
+#include <QThread>
+#include <QMovie>
 #include <QList>
 #include <QProcess>
 #include <QDoubleSpinBox>
@@ -23,9 +25,22 @@
 #include <iomanip>
 
 #include "utils.h"
+#include "ccExaLog.h"
+#include "ccExaWorker.h"
 
+/* Init DEFINES */
+
+// Percentage distance of vector point from point A
 #define COEF_INIT 50
+// Box tolerance
 #define TOLERANCE_INIT 0.5
+
+/* Debug DEFINES */
+
+// Plan is used to position box
+#define DEBUG_PLAN false
+// Box points
+#define DEBUG_BOX_POINTS false
 
 
 class ccExametricsDialog;
@@ -36,6 +51,7 @@ class ccExametrics : public QObject, public ccStdPluginInterface
 	Q_OBJECT
 		Q_INTERFACES(ccStdPluginInterface)
 		Q_PLUGIN_METADATA(IID "cccorp.cloudcompare.plugin.qExametrics")
+
 
 public:
 
@@ -55,6 +71,8 @@ public:
 	//inherited from ccStdPluginInterface
 	void onNewSelection(const ccHObject::Container& selectedEntities) override;
 	virtual void getActions(QActionGroup& group) override;
+
+	ExaLog* logger = nullptr;
 
 private:
 
@@ -104,6 +122,12 @@ private:
 	// state
 	bool planeIsInDBTree = false;
 
+	QMovie* loadingGifMovie = nullptr;
+
+
+	QThread workerThread;
+	ExaWorker* exaWorker = nullptr;
+
 
 	/* Initialization methods */
 
@@ -130,10 +154,8 @@ private:
     void initPoint();
     // Update vector point display
     void updatePoint();
-
     // Update plan display
 	void updatePlan();
-
 	// Update box display
 	void updateBox();
 
@@ -154,9 +176,10 @@ private:
 
 	/* Other methods*/
 
-	void logInfo(QString s);
-	void logWarn(QString s);
-	void logError(QString s);
+	void setGifLoading(bool enabled);
+
+signals:
+    void operateWorker(QStringList, ExaLog*);
 
 
 protected slots:
@@ -177,7 +200,10 @@ protected slots:
 	void onSpbYBChanged(double value);
 	void onSpbZBChanged(double value);
 	void onCoefSliderChanged(int value);
+	void onCoefSpinBoxChanged(int value);
 	void onToleranceSpbChanged(double value);
+
+	void workerDone(const QString &);
 
 
 protected:
@@ -189,12 +215,12 @@ protected:
 	//ccExametrics UI
 	ccExametricsDialog* m_dlg = nullptr;
 
-	//! Default action
-	/** You can add as many actions as you want in a plugin.
-		All actions will correspond to an icon in the dedicated
-		toolbar and an entry in the plugin menu.
-	**/
+	//icon action
 	QAction* m_action;
+
+
 };
+
+//extern void computeInThread(QStringList arguments, ExaLog* logger);
 
 #endif
