@@ -20,7 +20,10 @@ class ccExametricsDialog : public ccOverlayDialog, public Ui::exametricsDialog
 public:
 	//! Default constructor
 	explicit ccExametricsDialog(QWidget* parent = 0);
-
+    void mousePressEvent(QMouseEvent *event);
+    void mouseMoveEvent(QMouseEvent *event);
+    int m_nMouseClick_X_Coordinate;
+    int m_nMouseClick_Y_Coordinate;
 };
 
 #endif

@@ -1,3 +1,4 @@
+
 //##########################################################################
 //#                                                                        #
 //#                       CLOUDCOMPARE PLUGIN: qExametrics                 #
@@ -371,6 +372,16 @@ void ccExametrics::initializeDrawSettings()
     this->updateBox();
 
     this->canUpdateGraphics = true;
+//    this->pPlane->prepareDisplayForRefresh();
+//    this->box->prepareDisplayForRefresh();
+//
+//    this->pPlane->prepareDisplayForRefresh_recursive();
+//    this->box->prepareDisplayForRefresh_recursive();
+//    this->vectorPointCloud->prepareDisplayForRefresh();
+//    this->vectorPointCloud->prepareDisplayForRefresh_recursive();
+//    m_app->refreshAll();
+//
+//    m_app->updateUI();
 }
 
 
@@ -414,6 +425,7 @@ void ccExametrics::updateVector()
     // add points
     this->normalizedVectorCloud->addPoint(Utils::ccVectorDoubleToFloat(getNormalizedVectorPointA()));
     this->normalizedVectorCloud->addPoint(Utils::ccVectorDoubleToFloat(getNormalizedVectorPointB()));
+
 }
 
 void ccExametrics::initPoint()
@@ -454,6 +466,7 @@ void ccExametrics::updatePoint()
     this->m_vectorPoint = CCVector3d(k * (pointB.x - pointA.x) + pointA.x, k * (pointB.y - pointA.y) + pointA.y, k * (pointB.z - pointA.z) + pointA.z);
 
     this->vectorPointCloud->addPoint(Utils::ccVectorDoubleToFloat(getVectorPoint()));
+
 }
 
 void ccExametrics::updatePlan()
@@ -512,14 +525,13 @@ void ccExametrics::updatePlan()
     if(this->pPlane)
     {
         // setrgb ?
-        pPlane->setColor(ccColor::blue);
+        pPlane->setColor(ccColor::yellow);
         pPlane->showColors(true);
         pPlane->showNormalVector(true);
         pPlane->setXWidth(this->m_boxXWidth);
         pPlane->setYWidth(this->m_boxYWidth);
-
         //make plane to add to display
-        pPlane->setVisible(false);
+        pPlane->setVisible(true);
         //pPlane->setSelectionBehavior(ccHObject::SELECTION_IGNORED);
 
         pPlane->setDisplay(m_app->getActiveGLWindow());
@@ -528,6 +540,7 @@ void ccExametrics::updatePlan()
         this->m_exametricsGroup->addChild(this->pPlane);
 
         planeIsInDBTree = true;
+
     }
     else
     {
@@ -547,31 +560,10 @@ void ccExametrics::updateBox()
     CCVector3 dimensions = CCVector3(this->m_boxXWidth, this->m_boxYWidth, this->getTolerance());
     // Matrice liée
     ccGLMatrix matBox;
-    // Création de la box
-    ccBox* tmpBox = new ccBox(dimensions, &matBox, "tmpBox");
-    // ClipBox associé
-    ccClipBox* associatedClipBox = new ccClipBox("tmpBox");
-    // Center
-    CCVector3 boxCenter = associatedClipBox->getBox().getCenter();
 
-    // Delete tmp variable
-    delete tmpBox;
-    delete associatedClipBox;
+    //get the plane transformation to apply it for the box
+    matBox = this->pPlane->getTransformation();
 
-    CCVector3d vectorPoint = this->getVectorPoint();
-    CCVector3d pointA = this->getNormalizedVectorPointA();
-    CCVector3 boxTranslation = CCVector3(vectorPoint.x - boxCenter.x,
-                                         vectorPoint.y - boxCenter.y,
-                                         vectorPoint.z - boxCenter.z);
-
-    CCVector3d boxVect = vectorPoint - pointA;
-
-    matBox = ccGLMatrix(CCVector3(0                       , 50 * -boxVect.z / m_coef, 50 * boxVect.y / m_coef), // colonne 0 rotation x
-                        CCVector3(50 * -boxVect.z / m_coef, 0                       , 50 * boxVect.x / m_coef), // colonne 1 rotation y
-                        CCVector3(0                       , 0                       , 1                      ), // colonne 2 rotation z
-                        boxTranslation);                                                                        // translation
-
-    logInfo(Utils::ccVector3ToString(boxVect));
 
     this->box = new ccBox(dimensions, &matBox);
 
@@ -580,12 +572,12 @@ void ccExametrics::updateBox()
         box->showNormals(false);
         box->setColor(ccColor::blue);
         box->showColors(true);
-        box->enableStippling(true);
+        box->enableStippling(false);
+        box->getBB_recursive(true);
 
         //make box to add to display
 		box->setVisible(true);
 		box->setDisplay(m_app->getActiveGLWindow());
-
 		this->m_exametricsGroup->addChild(this->box);
     }
 }
