@@ -186,133 +186,158 @@ void ccExametrics::onCompute()
 {
     setGifLoading(true);
 
+    // All algorithms are executed in a separated Thread
 
-    // Plan equation
-    CCVector3 normalVector;
-    PointCoordinateType d = 0;
-    this->pPlane->getEquation(normalVector, d);
-
-    // File name
-    QString tmpFileName = this->rootLasFile->getName();
-    int parenthesis = tmpFileName.indexOf('(');
-    QString path = tmpFileName.right(tmpFileName.length() - parenthesis).remove('(').remove(')');
-    QString fileName  = tmpFileName.left(parenthesis - 1).prepend('/').prepend(path);
-
-    // Current cloud
-    ccGenericPointCloud* boxCloud = this->box->getAssociatedCloud();
-
-
-    // Retrieve box points and remove duplicates to get 8 points instead of 24
-    bool duplicate = false;
-    QList<const CCVector3*>* points = new QList<const CCVector3*>();
-    float e = 0.0001;
-    for(int i = 0; i < 24; i++)
+    QString algo = m_dlg->cmbAlgo->currentText();
+    if(algo == "Octree")
     {
-        const CCVector3* p1 = boxCloud->getPoint(i);
-        //logInfo(Utils::ccVector3ToString(p1));
-        for(int j = 0; j < points->length(); j++)
-        {
-            const CCVector3* p2 = points->at(j);
+        this->logger->logInfo("Generating octree.");
+        ccGenericPointCloud* cloud = static_cast<ccGenericPointCloud*>(this->rootLasFile->getChild(0));
 
-            if(p1 != p2)
+        octree = cloud->getOctree();
+        if(!octree)
+        {
+            octree = cloud->computeOctree();
+        }
+
+        // configure worker that will do the recursive intersection in a thread
+        if(!this->exaWorker)
+        {
+            //std::cout << "new exaworker\n";
+            this->exaWorker = new ExaWorker();
+            this->exaWorker->moveToThread(&this->workerThread);
+            connect(&workerThread, SIGNAL(finished()), this->exaWorker, SLOT(deleteLater()));
+        }
+
+        qRegisterMetaType<ccOctree::Shared>("Shared");
+
+        connect(this, SIGNAL(operateOctreeWorker(ccOctree::Shared, double, ExaLog*)), this->exaWorker, SLOT(doOctreeWork(ccOctree::Shared, double, ExaLog*)));
+        connect(this->exaWorker, SIGNAL(octreeLevelReady(const unsigned int)), this, SLOT(octreeLevelReady(const unsigned int)));
+        connect(this->exaWorker, SIGNAL(octreeResultReady(QString)), this, SLOT(workerDone(QString)));
+
+        // Start thread
+        this->workerThread.start();
+        // Emit signal to start the work
+        emit operateOctreeWorker(octree, this->getTolerance(), this->logger);
+    }
+    else if(algo == "Linear")
+    {
+        this->logger->logInfo("Generating intersection with python linear algorithm.");
+        /* Get parameters for python script */
+
+        // File name
+        QString tmpFileName = this->rootLasFile->getName();
+        int parenthesis = tmpFileName.indexOf('(');
+        QString path = tmpFileName.right(tmpFileName.length() - parenthesis).remove('(').remove(')');
+        QString fileName  = tmpFileName.left(parenthesis - 1).prepend('/').prepend(path);
+
+        // Current cloud
+        ccGenericPointCloud* boxCloud = this->box->getAssociatedCloud();
+
+
+        // Retrieve box points and remove duplicates to get 8 points instead of 24
+        bool duplicate = false;
+        QList<const CCVector3*>* points = new QList<const CCVector3*>();
+        float e = 0.0001;
+        for(int i = 0; i < 24; i++)
+        {
+            const CCVector3* p1 = boxCloud->getPoint(i);
+            //logInfo(Utils::ccVector3ToString(p1));
+            for(int j = 0; j < points->length(); j++)
             {
-                //std::cout << "p1 != p2 ";
-                if(Utils::double_equals(p1->x, p2->x, e) && Utils::double_equals(p1->y, p2->y, e) && Utils::double_equals(p1->z, p2->z, e))
+                const CCVector3* p2 = points->at(j);
+
+                if(p1 != p2)
                 {
-                    //std::cout << "duplicate \n";
-                    duplicate = true;
+                    //std::cout << "p1 != p2 ";
+                    if(Utils::double_equals(p1->x, p2->x, e) && Utils::double_equals(p1->y, p2->y, e) && Utils::double_equals(p1->z, p2->z, e))
+                    {
+                        //std::cout << "duplicate \n";
+                        duplicate = true;
+                    }
                 }
+
+                if(duplicate)
+                    break;
             }
 
-            if(duplicate)
-                break;
+            if(!duplicate)
+            {
+                //std::cout << "add point " << i << "\n";
+                points->append(p1);
+            }
+
+            duplicate = false;
         }
 
-        if(!duplicate)
+        // Display points
+        if(DEBUG_BOX_POINTS)
         {
-            //std::cout << "add point " << i << "\n";
-            points->append(p1);
+            // affichage des points (8 normalement)
+            for(int i = 0; i < points->length(); i++)
+            {
+                const CCVector3* p = points->at(i);
+
+                this->tmpPointCloudList->at(i)->clear();
+                this->tmpPointCloudList->at(i)->reserve(1);
+                this->tmpPointCloudList->at(i)->addPoint(CCVector3(p->x, p->y, p->z));
+            }
         }
 
-        duplicate = false;
-    }
+        // https://math.stackexchange.com/questions/1472049/check-if-a-point-is-inside-a-rectangular-shaped-area-3d
+        const CCVector3* P1 = points->at(5);
+        const CCVector3* P2 = points->at(3);
+        const CCVector3* P4 = points->at(1);
+        const CCVector3* P5 = points->at(0);
 
-    // Display points
-    if(DEBUG_BOX_POINTS)
-    {
-        // affichage des points (8 normalement)
-        for(int i = 0; i < points->length(); i++)
+        // Arguments for python intersection script
+        QStringList arguments = QStringList() << "/usr/local/lib/cloudcompare/plugins/exa.py" << fileName
+                                              << QString::number(P1->x) << QString::number(P1->y) << QString::number(P1->z)
+                                              << QString::number(P2->x) << QString::number(P2->y) << QString::number(P2->z)
+                                              << QString::number(P4->x) << QString::number(P4->y) << QString::number(P4->z)
+                                              << QString::number(P5->x) << QString::number(P5->y) << QString::number(P5->z);
+
+        // configure worker that will do the python intersection in a thread
+        if(!this->exaWorker)
         {
-            const CCVector3* p = points->at(i);
-
-            this->tmpPointCloudList->at(i)->clear();
-            this->tmpPointCloudList->at(i)->reserve(1);
-            this->tmpPointCloudList->at(i)->addPoint(CCVector3(p->x, p->y, p->z));
+            //std::cout << "new exaworker\n";
+            this->exaWorker = new ExaWorker();
+            this->exaWorker->moveToThread(&this->workerThread);
+            connect(&workerThread, SIGNAL(finished()), this->exaWorker, SLOT(deleteLater()));
         }
+
+        connect(this, SIGNAL(operatePythonWorker(QStringList, ExaLog*)), this->exaWorker, SLOT(doPythonWork(QStringList, ExaLog*)));
+        connect(this->exaWorker, SIGNAL(pythonResultReady(QString)), this, SLOT(workerDone(QString)));
+
+        // Start thread
+        this->workerThread.start();
+        // Emit signal to start the work
+        emit operatePythonWorker(arguments, this->logger);
     }
 
-    // https://math.stackexchange.com/questions/1472049/check-if-a-point-is-inside-a-rectangular-shaped-area-3d
-    const CCVector3* P1 = points->at(5);
-    const CCVector3* P2 = points->at(3);
-    const CCVector3* P4 = points->at(1);
-    const CCVector3* P5 = points->at(0);
+    /*// Plan equation
+    CCVector3 normalVector;
+    PointCoordinateType d = 0;
+    this->pPlane->getEquation(normalVector, d);*/
+}
 
+// Threaded worker done
+void ccExametrics::workerDone(const QString s)
+{
+    this->logger->logInfo(s + " done!");
+    setGifLoading(false);
+}
 
-    // Arguments for python intersection script
-    QStringList arguments = QStringList() << "/usr/local/lib/cloudcompare/plugins/exa.py" << fileName
-                                          << QString::number(P1->x) << QString::number(P1->y) << QString::number(P1->z)
-                                          << QString::number(P2->x) << QString::number(P2->y) << QString::number(P2->z)
-                                          << QString::number(P4->x) << QString::number(P4->y) << QString::number(P4->z)
-                                          << QString::number(P5->x) << QString::number(P5->y) << QString::number(P5->z);
-
-
-    this->logger->logInfo("Generating octree.");
-    ccGenericPointCloud* cloud = static_cast<ccGenericPointCloud*>(this->rootLasFile->getChild(0));
-
-
-    octree = cloud->getOctree();
-    if(!octree)
-    {
-        octree = cloud->computeOctree();
-    }
-    octree->setDisplayedLevel(6);
-
-    //CCLib::DgmOctree* dgmOctree = new CCLib::DgmOctree(cloud);
+void ccExametrics::octreeLevelReady(const unsigned int level)
+{
+    this->logger->logInfo("Displaying Octree with level " + QString::number(level));
+    octree->setDisplayedLevel(level);
 
     this->octreeProxy = new ccOctreeProxy(octree, "Cloud Octree");
     this->octreeProxy->setDisplay(m_app->getActiveGLWindow());
     this->octreeProxy->setVisible(true);
 
     this->m_exametricsGroup->addChild(octreeProxy);
-
-    return;
-
-    // configure worker that will do the intersection in a thread
-    if(!this->exaWorker)
-    {
-        //std::cout << "new exaworker\n";
-        this->exaWorker = new ExaWorker();
-        this->exaWorker->moveToThread(&this->workerThread);
-        connect(&workerThread, SIGNAL(finished()), this->exaWorker, SLOT(deleteLater()));
-        connect(this, SIGNAL(operateWorker(QStringList, ExaLog*)), this->exaWorker, SLOT(doWork(QStringList, ExaLog*)));
-        connect(this->exaWorker, SIGNAL(resultReady(QString)), this, SLOT(workerDone(QString)));
-    }
-
-    //std::cout << "before workerThread start\n";
-
-    // Start thread
-    this->workerThread.start();
-    // Emit signal to start the work
-    emit operateWorker(arguments, this->logger);
-}
-
-// Threaded worker done
-void ccExametrics::workerDone(const QString &)
-{
-    //std::cout << "worker done\n";
-    setGifLoading(false);
-    /*workerThread.quit();
-    workerThread.wait();*/
 }
 
 
@@ -401,6 +426,11 @@ void ccExametrics::initializeParameterWidgets()
 
     m_dlg->tabP2->setEnabled(false);
     m_dlg->rdb2Plan->setEnabled(false);
+
+    // algorithm selection
+    QStringList algos;
+    algos << "Octree" << "Linear";
+    m_dlg->cmbAlgo->addItems(algos);
 }
 
 /* Initialize draw settings for normalized vector, point and plan display */
@@ -505,7 +535,6 @@ void ccExametrics::updateVector()
     // add points
     this->normalizedVectorCloud->addPoint(Utils::ccVectorDoubleToFloat(getNormalizedVectorPointA()));
     this->normalizedVectorCloud->addPoint(Utils::ccVectorDoubleToFloat(getNormalizedVectorPointB()));
-
 }
 
 void ccExametrics::initPoint()

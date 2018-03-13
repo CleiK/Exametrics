@@ -6,7 +6,7 @@ ExaWorker::ExaWorker()
 
 }
 
-void ExaWorker::doWork(QStringList arguments, ExaLog* logger)
+void ExaWorker::doPythonWork(QStringList arguments, ExaLog* logger)
 {
     // Executing python intersection script
     QProcess intersectionProcess;
@@ -29,5 +29,34 @@ void ExaWorker::doWork(QStringList arguments, ExaLog* logger)
     }
 
 
-	emit resultReady("Done");
+	emit pythonResultReady("Python");
+}
+
+void ExaWorker::doOctreeWork(ccOctree::Shared octree, double tolerance, ExaLog* logger)
+{
+	// find octree level
+
+	float maxCellLength = K_CELL_TOLERANCE * tolerance;
+
+    int level = 1;
+    float cellLength = octree->getCellSize(level);
+
+    bool maxSubLevel = false;
+    while( (cellLength > maxCellLength) && (!maxSubLevel) )
+    {
+        level++;
+        cellLength = octree->getCellSize(level);
+
+        if(level == 10)
+        {
+            maxSubLevel = true;
+        }
+    }
+
+    emit octreeLevelReady(level);
+
+
+    // search intersection
+
+	emit octreeResultReady("Octree");
 }

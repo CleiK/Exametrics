@@ -36,7 +36,8 @@
 // Percentage distance of vector point from point A
 #define COEF_INIT 50
 // Box tolerance
-#define TOLERANCE_INIT 0.5
+#define TOLERANCE_INIT 1
+
 
 /* Debug DEFINES */
 
@@ -44,6 +45,9 @@
 #define DEBUG_PLAN false
 // Box points
 #define DEBUG_BOX_POINTS false
+
+
+Q_DECLARE_METATYPE(ccOctree::Shared);
 
 
 class ccExametricsDialog;
@@ -185,7 +189,8 @@ private:
 	void setGifLoading(bool enabled);
 
 signals:
-    void operateWorker(QStringList, ExaLog*);
+    void operatePythonWorker(QStringList, ExaLog*);
+    void operateOctreeWorker(ccOctree::Shared octree, double tolerance, ExaLog*);
 
 
 protected slots:
@@ -209,7 +214,8 @@ protected slots:
 	void onCoefSpinBoxChanged(int value);
 	void onToleranceSpbChanged(double value);
 
-	void workerDone(const QString &);
+	void workerDone(const QString s);
+	void octreeLevelReady(const unsigned int level);
 
 
 protected:

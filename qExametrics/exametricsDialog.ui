@@ -69,6 +69,17 @@
        </property>
       </spacer>
      </item>
+     <item>
+      <widget class="QToolButton" name="closeButton">
+       <property name="text">
+        <string>...</string>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normaloff>:/CC/images/smallCancel.png</normaloff>:/CC/images/smallCancel.png</iconset>
+       </property>
+      </widget>
+     </item>
     </layout>
    </item>
    <item>
@@ -1029,6 +1040,16 @@
       </widget>
      </item>
      <item>
+      <widget class="QLabel" name="lblAlgo">
+       <property name="text">
+        <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p&gt;&lt;span style=&quot; font-weight:600;&quot;&gt;Algorithm:&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="cmbAlgo"/>
+     </item>
+     <item>
       <spacer name="horizontalSpacer">
        <property name="orientation">
         <enum>Qt::Horizontal</enum>
@@ -1064,17 +1085,6 @@
       <widget class="QPushButton" name="computeButton">
        <property name="text">
         <string>Compute</string>
-       </property>
-      </widget>
-     </item>
-     <item>
-      <widget class="QToolButton" name="closeButton">
-       <property name="text">
-        <string>...</string>
-       </property>
-       <property name="icon">
-        <iconset>
-         <normaloff>:/CC/images/smallCancel.png</normaloff>:/CC/images/smallCancel.png</iconset>
        </property>
       </widget>
      </item>
