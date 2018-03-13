@@ -8,7 +8,6 @@ ExaWorker::ExaWorker()
 
 void ExaWorker::doWork(QStringList arguments, ExaLog* logger)
 {
-
     // Executing python intersection script
     QProcess intersectionProcess;
 

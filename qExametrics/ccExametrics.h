@@ -9,6 +9,9 @@
 
 //qCC
 #include "../ccStdPluginInterface.h"
+#include <DgmOctree.h>
+#include <ccOctree.h>
+#include <ccOctreeProxy.h>
 #include <QThread>
 #include <QMovie>
 #include <QList>
@@ -124,9 +127,12 @@ private:
 
 	QMovie* loadingGifMovie = nullptr;
 
-
 	QThread workerThread;
 	ExaWorker* exaWorker = nullptr;
+
+
+	ccOctree::Shared octree = nullptr;
+    ccOctreeProxy* octreeProxy = nullptr;
 
 
 	/* Initialization methods */

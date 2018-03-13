@@ -265,10 +265,32 @@ void ccExametrics::onCompute()
                                           << QString::number(P4->x) << QString::number(P4->y) << QString::number(P4->z)
                                           << QString::number(P5->x) << QString::number(P5->y) << QString::number(P5->z);
 
+
+    this->logger->logInfo("Generating octree.");
+    ccGenericPointCloud* cloud = static_cast<ccGenericPointCloud*>(this->rootLasFile->getChild(0));
+
+
+    octree = cloud->getOctree();
+    if(!octree)
+    {
+        octree = cloud->computeOctree();
+    }
+    octree->setDisplayedLevel(6);
+
+    //CCLib::DgmOctree* dgmOctree = new CCLib::DgmOctree(cloud);
+
+    this->octreeProxy = new ccOctreeProxy(octree, "Cloud Octree");
+    this->octreeProxy->setDisplay(m_app->getActiveGLWindow());
+    this->octreeProxy->setVisible(true);
+
+    this->m_exametricsGroup->addChild(octreeProxy);
+
+    return;
+
     // configure worker that will do the intersection in a thread
     if(!this->exaWorker)
     {
-        s//td::cout << "new exaworker\n";
+        //std::cout << "new exaworker\n";
         this->exaWorker = new ExaWorker();
         this->exaWorker->moveToThread(&this->workerThread);
         connect(&workerThread, SIGNAL(finished()), this->exaWorker, SLOT(deleteLater()));
