@@ -26,14 +26,18 @@ ccExametrics::~ccExametrics()
 
 }
 
+
 //This method should enable or disable each plugin action
 //depending on the currently selected entities ('selectedEntities').
 //For example: if none of the selected entities is a cloud, and your
 //plugin deals only with clouds, call 'm_action->setEnabled(false)'
 void ccExametrics::onNewSelection(const ccHObject::Container& selectedEntities)
 {
-    //disable the main plugin icon if no entity is loaded
-    m_action->setEnabled(m_app && m_app->dbRootObject() && m_app->dbRootObject()->getChildrenNumber() != 0);
+
+    //m_action->setEnabled(m_app && m_app->dbRootObject() && m_app->dbRootObject()->getChildrenNumber() != 0);
+
+    /*Enable EXAMETREICS Plugin only when you select a point cloud */
+    m_action->setEnabled(selectedEntities.size()==1 && selectedEntities[0]->isA(CC_TYPES::POINT_CLOUD));
 
     if (!m_dlg)
     {
@@ -86,8 +90,6 @@ void ccExametrics::doAction()
         logger->logError("Could not find valid 3D window.");
         return;
     }
-
-
 
     //bind GUI events
     m_dlg = new ccExametricsDialog((QWidget*)m_app->getMainWindow());
@@ -185,9 +187,7 @@ void ccExametrics::setGifLoading(bool enabled)
 void ccExametrics::onCompute()
 {
     setGifLoading(true);
-
     // All algorithms are executed in a separated Thread
-
     QString algo = m_dlg->cmbAlgo->currentText();
     if(algo == "Octree")
     {
@@ -198,7 +198,45 @@ void ccExametrics::onCompute()
         if(!octree)
         {
             octree = cloud->computeOctree();
+
+/* Get a cell center in the main cloud */
+            CCVector3 center;
+            Tuple3i pos;
+            this->newCloud = new ccPointCloud();
+            const CCVector3 *thePoint = cloud->getPoint(25000);
+            this->octree->getTheCellPosWhichIncludesThePoint(thePoint,pos,6);
+            this->octree->computeCellCenter(pos,6,center);
+            this->newCloud->reserve(1);
+            this->newCloud->addPoint(center);
+            this->centrePoint2DLabel = new cc2DLabel("Cell center");
+            this->centrePoint2DLabel->setVisible(true);
+            this->centrePoint2DLabel->setDisplay(m_app->getActiveGLWindow());
+            centrePoint2DLabel->addPoint(newCloud, newCloud->size() - 1);
+/* end of getting cell center of the point number X */
+
+
+
+
+/* crop and extract data*/
+            ccPointCloud* cloudx = static_cast<ccPointCloud*>(this->rootLasFile->getChild(0));
+            ccGenericPointCloud* boxCloud = this->box->getAssociatedCloud();
+            ccBBox bbox = boxCloud->getBB_recursive();
+            CCLib::ReferenceCloud* selection =cloudx->crop(bbox,true);
+    if (!selection)
+		{
+			//process failed!
+			ccLog::Warning(QString("[Crop] Failed to crop cloud '%1'!").arg(cloudx->getName()));
         }
+		//crop
+            ccPointCloud* croppedEnt = cloudx->partialClone(selection);
+            delete selection;
+            selection = 0;
+            this->m_exametricsGroup->addChild(croppedEnt);
+/* end of crop*/
+        }
+
+
+
 
         // configure worker that will do the recursive intersection in a thread
         if(!this->exaWorker)
@@ -208,18 +246,16 @@ void ccExametrics::onCompute()
             this->exaWorker->moveToThread(&this->workerThread);
             connect(&workerThread, SIGNAL(finished()), this->exaWorker, SLOT(deleteLater()));
         }
-
         qRegisterMetaType<ccOctree::Shared>("Shared");
-
         connect(this, SIGNAL(operateOctreeWorker(ccOctree::Shared, double, ExaLog*)), this->exaWorker, SLOT(doOctreeWork(ccOctree::Shared, double, ExaLog*)));
         connect(this->exaWorker, SIGNAL(octreeLevelReady(const unsigned int)), this, SLOT(octreeLevelReady(const unsigned int)));
         connect(this->exaWorker, SIGNAL(octreeResultReady(QString)), this, SLOT(workerDone(QString)));
-
         // Start thread
         this->workerThread.start();
         // Emit signal to start the work
         emit operateOctreeWorker(octree, this->getTolerance(), this->logger);
     }
+
     else if(algo == "Linear")
     {
         this->logger->logInfo("Generating intersection with python linear algorithm.");
@@ -319,6 +355,8 @@ void ccExametrics::onCompute()
     CCVector3 normalVector;
     PointCoordinateType d = 0;
     this->pPlane->getEquation(normalVector, d);*/
+
+
 }
 
 // Threaded worker done
@@ -326,6 +364,8 @@ void ccExametrics::workerDone(const QString s)
 {
     this->logger->logInfo(s + " done!");
     setGifLoading(false);
+
+    this->m_exametricsGroup->addChild(this->centrePoint2DLabel);
 }
 
 void ccExametrics::octreeLevelReady(const unsigned int level)
@@ -345,7 +385,6 @@ void ccExametrics::octreeLevelReady(const unsigned int level)
 void ccExametrics::onClose()
 {
     stop();
-
     // also removes childs of this->m_exametricsGroup
     m_app->removeFromDB(this->m_exametricsGroup, true);
 }
@@ -490,6 +529,7 @@ void ccExametrics::initializeDrawSettings()
     /* Box */
     this->updateBox();
 
+    /* Update Graphics*/
     this->canUpdateGraphics = true;
 }
 

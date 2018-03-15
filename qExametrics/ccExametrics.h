@@ -18,6 +18,7 @@
 #include <QProcess>
 #include <QDoubleSpinBox>
 #include <ccPointCloud.h>
+#include<ccGenericPointCloud.h>
 #include <ccPolyline.h>
 #include <cc2DLabel.h>
 #include <ccPlane.h>
@@ -26,7 +27,6 @@
 #include <unistd.h>
 #include <iostream>
 #include <iomanip>
-
 #include "utils.h"
 #include "ccExaLog.h"
 #include "ccExaWorker.h"
@@ -116,6 +116,14 @@ private:
 
 	// plan cloud (display purpose)
 	ccPointCloud* planCloud = nullptr;
+
+/* */
+	//new cloud to test the cell center
+	ccPointCloud* newCloud = nullptr;
+    cc2DLabel* centrePoint2DLabel = nullptr;
+/* */
+
+
 	// plan
 	ccPlane* pPlane = nullptr;
 

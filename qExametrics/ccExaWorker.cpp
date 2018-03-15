@@ -1,4 +1,4 @@
-#include "ccExaWorker.h" 
+#include "ccExaWorker.h"
 
 
 ExaWorker::ExaWorker()
@@ -55,8 +55,8 @@ void ExaWorker::doOctreeWork(ccOctree::Shared octree, double tolerance, ExaLog* 
 
     emit octreeLevelReady(level);
 
-
     // search intersection
 
 	emit octreeResultReady("Octree");
+
 }
