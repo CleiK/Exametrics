@@ -11,9 +11,14 @@ CloudCompare plugin
 
 ## Report
 * Stakeholders
-* Technology
+* Specifications
+* Technologies implied
 * Working method
-* Developments
+* Environment installation
+* LAS files
+* Plugin development
+* Feedback
+* Conclusions
 
 ## Development
 * Clone [CloudCompare](https://github.com/cloudcompare/cloudcompare)
