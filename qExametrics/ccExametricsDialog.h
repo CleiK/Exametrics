@@ -13,15 +13,21 @@
 //Local
 #include <ui_exametricsDialog.h>
 
+/* Plugin dialog */
 class ccExametricsDialog : public ccOverlayDialog, public Ui::exametricsDialog
 {
 	Q_OBJECT
 
 public:
-	//! Default constructor
+	/* Default constructor */
 	explicit ccExametricsDialog(QWidget* parent = 0);
+
+	/* Retrieve mouse coordinates on click */
     void mousePressEvent(QMouseEvent *event);
+    /* Move the window on mouse move */
     void mouseMoveEvent(QMouseEvent *event);
+
+
     int m_nMouseClick_X_Coordinate;
     int m_nMouseClick_Y_Coordinate;
 };

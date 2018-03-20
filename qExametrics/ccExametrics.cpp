@@ -359,7 +359,7 @@ void ccExametrics::onCompute()
 
 }
 
-// Threaded worker done
+// Called when the worker is done
 void ccExametrics::workerDone(const QString s)
 {
     this->logger->logInfo(s + " done!");
@@ -368,6 +368,7 @@ void ccExametrics::workerDone(const QString s)
     this->m_exametricsGroup->addChild(this->centrePoint2DLabel);
 }
 
+// Called when the worker has computed the desired octree level
 void ccExametrics::octreeLevelReady(const unsigned int level)
 {
     this->logger->logInfo("Displaying Octree with level " + QString::number(level));
@@ -533,7 +534,7 @@ void ccExametrics::initializeDrawSettings()
     this->canUpdateGraphics = true;
 }
 
-
+// Init vector display
 void ccExametrics::initVector()
 {
     // new 2 points cloud
@@ -561,6 +562,7 @@ void ccExametrics::initVector()
     this->m_exametricsGroup->addChild(this->normalizedVectorPoly);
 }
 
+// Update vector display
 void ccExametrics::updateVector()
 {
     if(!this->normalizedVectorCloud)
@@ -577,6 +579,7 @@ void ccExametrics::updateVector()
     this->normalizedVectorCloud->addPoint(Utils::ccVectorDoubleToFloat(getNormalizedVectorPointB()));
 }
 
+// Init vector point display
 void ccExametrics::initPoint()
 {
     this->vectorPointCloud = new ccPointCloud("Vector point");
@@ -599,6 +602,7 @@ void ccExametrics::initPoint()
     this->m_exametricsGroup->addChild(this->vectorPoint2DLabel);
 }
 
+// Update vector point display
 void ccExametrics::updatePoint()
 {
     if(!this->vectorPointCloud)
@@ -618,6 +622,7 @@ void ccExametrics::updatePoint()
 
 }
 
+// Update plan display
 void ccExametrics::updatePlan()
 {
     if(!this->planCloud)
@@ -697,6 +702,7 @@ void ccExametrics::updatePlan()
     }
 }
 
+// Update box display
 void ccExametrics::updateBox()
 {
     //return;
@@ -773,7 +779,7 @@ void ccExametrics::onCoefSliderChanged(int value)
 {
     onVectorPointChanged(value);
 }
-
+/* Called when distance coefficient spinbox changed value */
 void ccExametrics::onCoefSpinBoxChanged(int value)
 {
     onVectorPointChanged(value);
@@ -835,7 +841,7 @@ void ccExametrics::onParameterChanged(QWidget* w, double value)
 
 }
 
-
+// Get box tolerance
 double ccExametrics::getTolerance()
 {
     if(!m_dlg) return 0 ;
@@ -859,13 +865,13 @@ double ccExametrics::getNormZ()
     if(!m_dlg) /*warn("normZ");*/ return 0;
     return abs(m_dlg->spbZB->value() - m_dlg->spbZA->value());
 }
-/* Return point A of the normalized vector */
+/* Return point A coordinates of the normalized vector */
 CCVector3d ccExametrics::getNormalizedVectorPointA()
 {
     if(!m_dlg) /*warn("pointA");*/ return CCVector3d(0,0,0);
     return CCVector3d(m_dlg->spbXA->value(), m_dlg->spbYA->value(), m_dlg->spbZA->value());
 }
-/* Return point B of the normalized vector */
+/* Return point B coordinates of the normalized vector */
 CCVector3d ccExametrics::getNormalizedVectorPointB()
 {
     if(!m_dlg) /*warn("pointB");*/ return CCVector3d(0,0,0);
@@ -882,7 +888,7 @@ CCVector3d ccExametrics::getVectorPoint()
 {
     return m_vectorPoint;
 }
-
+// Get the vector center coordinates
 CCVector3d ccExametrics::getVectorCenter()
 {
     CCVector3d A = getNormalizedVectorPointA();
@@ -891,12 +897,9 @@ CCVector3d ccExametrics::getVectorCenter()
                         (A.y + B.y) / 2,
                         (A.z + B.z) / 2);
 }
-
+// Get the vector bisector
 CCVector3d ccExametrics::getVectorMediator()
 {
     CCVector3d AB = getNormalizedVectorPointB() - getNormalizedVectorPointA();
     return CCVector3d(getVectorCenter() * AB);
 }
-
-
-

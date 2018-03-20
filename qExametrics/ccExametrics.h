@@ -9,24 +9,32 @@
 
 //qCC
 #include "../ccStdPluginInterface.h"
-#include <DgmOctree.h>
-#include <ccOctree.h>
-#include <ccOctreeProxy.h>
+
+// Qt
 #include <QThread>
 #include <QMovie>
 #include <QList>
 #include <QProcess>
 #include <QDoubleSpinBox>
+
+// CloudCompare
 #include <ccPointCloud.h>
-#include<ccGenericPointCloud.h>
+#include <ccGenericPointCloud.h>
 #include <ccPolyline.h>
 #include <cc2DLabel.h>
 #include <ccPlane.h>
 #include <ccBox.h>
 #include <ccClipBox.h>
+#include <DgmOctree.h>
+#include <ccOctree.h>
+#include <ccOctreeProxy.h>
+
+// Standard lib
 #include <unistd.h>
 #include <iostream>
 #include <iomanip>
+
+// Exametrics
 #include "utils.h"
 #include "ccExaLog.h"
 #include "ccExaWorker.h"
@@ -46,13 +54,14 @@
 // Box points
 #define DEBUG_BOX_POINTS false
 
-
+// Enable use of "ccOctree::Shared" in connect
 Q_DECLARE_METATYPE(ccOctree::Shared);
 
 
 class ccExametricsDialog;
 
-
+/* Main class of the ccExametrics plugin used to compute 
+   the intersection of a plan with tolerance and a cloud */
 class ccExametrics : public QObject, public ccStdPluginInterface
 {
 	Q_OBJECT
@@ -62,17 +71,18 @@ class ccExametrics : public QObject, public ccStdPluginInterface
 
 public:
 
-	//! Default constructor
+	// Default constructor
 	explicit ccExametrics(QObject* parent = nullptr);
 
-	//desconstructor
+	// Deconstructor
 	~ccExametrics();
 
 	//inherited from ccPluginInterface
 	virtual QString getName() const override { return "Exametrics"; }
 	virtual QString getDescription() const override { return "Exametrics plugin (plan intersection view)"; }
+	/* Return the plugin icon */
 	virtual QIcon getIcon() const override;
-
+	/* Called when the plugin is being stopped */
 	virtual void stop() override;
 
 	//inherited from ccStdPluginInterface
@@ -117,48 +127,54 @@ private:
 	// plan cloud (display purpose)
 	ccPointCloud* planCloud = nullptr;
 
-/* */
 	//new cloud to test the cell center
 	ccPointCloud* newCloud = nullptr;
     cc2DLabel* centrePoint2DLabel = nullptr;
-/* */
 
 
-	// plan
+	// Plan
 	ccPlane* pPlane = nullptr;
-
+	// Box
 	ccBox* box = nullptr;
 
-
+	// Temporary ccPointCloud list
     QList<ccPointCloud*>* tmpPointCloudList = nullptr;
+    // Temporary cc2DLabel list
     QList<cc2DLabel*>* tmpPointList = nullptr;
     const int N_point = 8;
 
 	// state
 	bool planeIsInDBTree = false;
 
+	// Loading Gif
 	QMovie* loadingGifMovie = nullptr;
 
+	// Thread use to do some work in parallel
 	QThread workerThread;
+	// Worker class
 	ExaWorker* exaWorker = nullptr;
 
-
+	// Shared octree bind to our cloud file
 	ccOctree::Shared octree = nullptr;
+	// Octree proxy used to display the octree
     ccOctreeProxy* octreeProxy = nullptr;
 
 
 	/* Initialization methods */
 
-	// spb limits and initial values
+	/* Initialize plan parameters at random values with min and max limits */
 	void initializeParameterWidgets();
-	// draw vectors and plans basic settings
+	/* Initialize draw settings for normalized vector, point and plan display */
 	void initializeDrawSettings();
 
 
 	/* On events methods */
 
+	/* Called when the parameters of the normalized vector are changing */
 	void onNormalizedVectorChanged();
+	/* Called when the parameter of the vector point is changing */
 	void onVectorPointChanged(int coef);
+	/* Called when a parameters of the plan is changing */
 	void onParameterChanged(QWidget* w, double value);
 
 
@@ -180,24 +196,38 @@ private:
 
 	/* Getters */
 
+	// Get box tolerance
 	double getTolerance();
+	/* Return the norm on X axis for the normalized vector */
     double getNormX();
+    /* Return the norm on Y axis for the normalized vector */
 	double getNormY();
+	/* Return the norm on Z axis for the normalized vector */
 	double getNormZ();
+	/* Return point A coordinates of the normalized vector */
 	CCVector3d getNormalizedVectorPointA();
+	/* Return point B coordinates of the normalized vector */
 	CCVector3d getNormalizedVectorPointB();
+	/* Return the normalized vector */
 	CCVector3d getNormalizedVector();
+	/* Return the point on the vector (compute from coef distance) */
 	CCVector3d getVectorPoint();
-	CCVector3d getVectorMediator();
+	// Get the vector center coordinates
 	CCVector3d getVectorCenter();
+	// Get the vector bisector
+	CCVector3d getVectorMediator();
+
 
 
 	/* Other methods*/
 
+	// Enable or disable the loading gif
 	void setGifLoading(bool enabled);
 
 signals:
+	// Use to tell the worker to do python work
     void operatePythonWorker(QStringList, ExaLog*);
+    // Use to tell the worker to do octree work
     void operateOctreeWorker(ccOctree::Shared octree, double tolerance, ExaLog*);
 
 
@@ -208,21 +238,38 @@ protected slots:
 	//**************
 	//GUI actions:
 	//**************
+
 	//general
+
+	/* Slot on Compute button click */
 	void onCompute();
+
+	/* Slot on dialog closed */
 	void onClose();
+
 	//plan parameters changed
+	/* Called when xA spinbox changed value */
 	void onSpbXAChanged(double value);
+	/* Called when yA spinbox changed value */
 	void onSpbYAChanged(double value);
+	/* Called when zA spinbox changed value */
 	void onSpbZAChanged(double value);
+	/* Called when xB spinbox changed value */
 	void onSpbXBChanged(double value);
+	/* Called when yB spinbox changed value */
 	void onSpbYBChanged(double value);
+	/* Called when zB spinbox changed value */
 	void onSpbZBChanged(double value);
+	/* Called when distance coefficient slider changed value */
 	void onCoefSliderChanged(int value);
+	/* Called when distance coefficient spinbox changed value */
 	void onCoefSpinBoxChanged(int value);
+	/* Called when tolerance spinbox changed value */
 	void onToleranceSpbChanged(double value);
 
+	// Called when the worker is done
 	void workerDone(const QString s);
+	// Called when the worker has computed the desired octree level
 	void octreeLevelReady(const unsigned int level);
 
 
@@ -240,7 +287,5 @@ protected:
 
 
 };
-
-//extern void computeInThread(QStringList arguments, ExaLog* logger);
 
 #endif

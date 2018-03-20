@@ -16,6 +16,7 @@
 //system
 #include <assert.h>
 
+/* Default constructor */
 ccExametricsDialog::ccExametricsDialog(QWidget* parent/*=0*/)
 	: ccOverlayDialog(parent)
 	, Ui::exametricsDialog()
@@ -27,15 +28,18 @@ ccExametricsDialog::ccExametricsDialog(QWidget* parent/*=0*/)
 	p.setColor(backgroundRole(), QColor(240, 240, 240, 200));
 	setPalette(p);
 	setAutoFillBackground(true);
-
-
 }
-void ccExametricsDialog::mousePressEvent(QMouseEvent *event) {
+
+/* Retrieve mouse coordinates on click */
+void ccExametricsDialog::mousePressEvent(QMouseEvent *event) 
+{
     m_nMouseClick_X_Coordinate = event->x();
     m_nMouseClick_Y_Coordinate = event->y();
 }
 
-void ccExametricsDialog::mouseMoveEvent(QMouseEvent *event) {
+/* Move the window on mouse move */
+void ccExametricsDialog::mouseMoveEvent(QMouseEvent *event) 
+{
     move(event->globalX()-m_nMouseClick_X_Coordinate,event->globalY()-m_nMouseClick_Y_Coordinate);
 }
 

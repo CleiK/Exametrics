@@ -1,11 +1,12 @@
 #include "ccExaWorker.h"
 
-
+/* Default constructor */
 ExaWorker::ExaWorker()
 {
 
 }
 
+/* Execute python script */
 void ExaWorker::doPythonWork(QStringList arguments, ExaLog* logger)
 {
     // Executing python intersection script
@@ -32,6 +33,7 @@ void ExaWorker::doPythonWork(QStringList arguments, ExaLog* logger)
 	emit pythonResultReady("Python");
 }
 
+/* Execute octree work */
 void ExaWorker::doOctreeWork(ccOctree::Shared octree, double tolerance, ExaLog* logger)
 {
 	// find octree level
