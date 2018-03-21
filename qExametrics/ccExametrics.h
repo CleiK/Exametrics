@@ -1,7 +1,7 @@
 //##########################################################################
 //#                                                                        #
 //#                       CLOUDCOMPARE PLUGIN: qExametrics                 #
-//#																									                       #
+//#																		   #
 //##########################################################################
 
 #ifndef Q_EXAMETRICS_PLUGIN_HEADER
@@ -54,11 +54,12 @@
 // Box points
 #define DEBUG_BOX_POINTS false
 
-// Enable use of "ccOctree::Shared" in connect
+
 Q_DECLARE_METATYPE(ccOctree::Shared);
 
 
 class ccExametricsDialog;
+//class ccComparisonDlg;
 
 /* Main class of the ccExametrics plugin used to compute 
    the intersection of a plan with tolerance and a cloud */
@@ -126,15 +127,9 @@ private:
 
 	// plan cloud (display purpose)
 	ccPointCloud* planCloud = nullptr;
-
-	//new cloud to test the cell center
-	ccPointCloud* newCloud = nullptr;
-    cc2DLabel* centrePoint2DLabel = nullptr;
-
-
-	// Plan
+	// plan
 	ccPlane* pPlane = nullptr;
-	// Box
+	// box
 	ccBox* box = nullptr;
 
 	// Temporary ccPointCloud list
@@ -158,6 +153,14 @@ private:
 	ccOctree::Shared octree = nullptr;
 	// Octree proxy used to display the octree
     ccOctreeProxy* octreeProxy = nullptr;
+    ccScalarField* sf = nullptr;
+
+    ccComparisonDlg* m_compDlg = nullptr;
+    //ExaWorker::SharedScalarField sf = nullptr;
+    //ExaWorker::OctreeExaWorkerInfos* workerInfos = nullptr;
+
+    //QSharedMemory sharedMemory;
+
 
 
 	/* Initialization methods */
@@ -166,6 +169,13 @@ private:
 	void initializeParameterWidgets();
 	/* Initialize draw settings for normalized vector, point and plan display */
 	void initializeDrawSettings();
+
+
+	/* Calculations methods */
+
+	// octree intersection computing
+	void octreeIntersection(const unsigned int level);
+
 
 
 	/* On events methods */
@@ -218,7 +228,6 @@ private:
 	CCVector3d getVectorMediator();
 
 
-
 	/* Other methods*/
 
 	// Enable or disable the loading gif
@@ -228,12 +237,10 @@ signals:
 	// Use to tell the worker to do python work
     void operatePythonWorker(QStringList, ExaLog*);
     // Use to tell the worker to do octree work
-    void operateOctreeWorker(ccOctree::Shared octree, double tolerance, ExaLog*);
+    void operateOctreeWorker(ccOctree::Shared octree, double tolerance, ExaLog* logger);
 
 
 protected slots:
-
-	void doAction();
 
 	//**************
 	//GUI actions:
@@ -271,6 +278,7 @@ protected slots:
 	void workerDone(const QString s);
 	// Called when the worker has computed the desired octree level
 	void octreeLevelReady(const unsigned int level);
+    void deactivateComparisonMode(int result);
 
 
 protected:
@@ -287,5 +295,7 @@ protected:
 
 
 };
+
+//extern void computeInThread(QStringList arguments, ExaLog* logger);
 
 #endif

@@ -11,6 +11,7 @@
 //Qt
 #include <QtGui>
 
+
 /* Default constructor */
 ccExametrics::ccExametrics(QObject* parent/*=0*/)
     : QObject(parent)
@@ -26,17 +27,13 @@ ccExametrics::~ccExametrics()
 
 }
 
-
 //This method should enable or disable each plugin action
 //depending on the currently selected entities ('selectedEntities').
 //For example: if none of the selected entities is a cloud, and your
 //plugin deals only with clouds, call 'm_action->setEnabled(false)'
 void ccExametrics::onNewSelection(const ccHObject::Container& selectedEntities)
 {
-
-    //m_action->setEnabled(m_app && m_app->dbRootObject() && m_app->dbRootObject()->getChildrenNumber() != 0);
-
-    /*Enable EXAMETREICS Plugin only when you select a point cloud */
+    /*Enable EXAMETRICS Plugin only when you select a point cloud */
     m_action->setEnabled(selectedEntities.size()==1 && selectedEntities[0]->isA(CC_TYPES::POINT_CLOUD));
 
     if (!m_dlg)
@@ -91,8 +88,15 @@ void ccExametrics::doAction()
         return;
     }
 
+
+
     //bind GUI events
     m_dlg = new ccExametricsDialog((QWidget*)m_app->getMainWindow());
+    if(!m_dlg)
+    {
+        logger->logError("Can't initialize dialog window.");
+        return;
+    }
 
     // initialize parameters widgets with the object in db tree
     this->rootLasFile = m_app->dbRootObject()->getChild(0);
@@ -150,6 +154,7 @@ void ccExametrics::stop()
 
     workerThread.quit();
     workerThread.wait();
+    //delete this->exaWorker;
 
     m_dlg = nullptr;
 
@@ -187,55 +192,37 @@ void ccExametrics::setGifLoading(bool enabled)
 void ccExametrics::onCompute()
 {
     setGifLoading(true);
+
     // All algorithms are executed in a separated Thread
+
     QString algo = m_dlg->cmbAlgo->currentText();
     if(algo == "Octree")
     {
         this->logger->logInfo("Generating octree.");
-        ccGenericPointCloud* cloud = static_cast<ccGenericPointCloud*>(this->rootLasFile->getChild(0));
+        ccPointCloud* cloud = static_cast<ccPointCloud*>(this->rootLasFile->getChild(0));
+        //this->sf = QSharedPointer<ccScalarField>(new ccScalarField("distances"));
 
-        octree = cloud->getOctree();
-        if(!octree)
+        /*this->sharedMemory = QSharedMemory("QSharedMemoryTest");
+        if (this->sharedMemory.isAttached())
         {
-            octree = cloud->computeOctree();
-
-/* Get a cell center in the main cloud */
-            CCVector3 center;
-            Tuple3i pos;
-            this->newCloud = new ccPointCloud();
-            const CCVector3 *thePoint = cloud->getPoint(25000);
-            this->octree->getTheCellPosWhichIncludesThePoint(thePoint,pos,6);
-            this->octree->computeCellCenter(pos,6,center);
-            this->newCloud->reserve(1);
-            this->newCloud->addPoint(center);
-            this->centrePoint2DLabel = new cc2DLabel("Cell center");
-            this->centrePoint2DLabel->setVisible(true);
-            this->centrePoint2DLabel->setDisplay(m_app->getActiveGLWindow());
-            centrePoint2DLabel->addPoint(newCloud, newCloud->size() - 1);
-/* end of getting cell center of the point number X */
-
-
-
-
-/* crop and extract data*/
-            ccPointCloud* cloudx = static_cast<ccPointCloud*>(this->rootLasFile->getChild(0));
-            ccGenericPointCloud* boxCloud = this->box->getAssociatedCloud();
-            ccBBox bbox = boxCloud->getBB_recursive();
-            CCLib::ReferenceCloud* selection =cloudx->crop(bbox,true);
-    if (!selection)
-		{
-			//process failed!
-			ccLog::Warning(QString("[Crop] Failed to crop cloud '%1'!").arg(cloudx->getName()));
-        }
-		//crop
-            ccPointCloud* croppedEnt = cloudx->partialClone(selection);
-            delete selection;
-            selection = 0;
-            this->m_exametricsGroup->addChild(croppedEnt);
-/* end of crop*/
+            detach();
         }
 
+        QString msg = QString("Je suis un message!");
+        this->sharedMemory.create(msg.size());
+        sharedMemory.lock();
+        char *to = (char*)sharedMemory.data();
+        const char *from = msg.data().data();
+        memcpy(to, from, qMin(sharedMemory.size(), msg->size()));
+        sharedMemory.unlock();*/
 
+
+        this->octree = cloud->getOctree();
+
+        if(!this->octree)
+        {
+            this->octree = cloud->computeOctree();
+        }
 
 
         // configure worker that will do the recursive intersection in a thread
@@ -246,16 +233,25 @@ void ccExametrics::onCompute()
             this->exaWorker->moveToThread(&this->workerThread);
             connect(&workerThread, SIGNAL(finished()), this->exaWorker, SLOT(deleteLater()));
         }
+
         qRegisterMetaType<ccOctree::Shared>("Shared");
+        //qRegisterMetaType<ExaWorker::OctreeExaWorkerInfos*>("OctreeExaWorkerInfosPtr");
+
         connect(this, SIGNAL(operateOctreeWorker(ccOctree::Shared, double, ExaLog*)), this->exaWorker, SLOT(doOctreeWork(ccOctree::Shared, double, ExaLog*)));
         connect(this->exaWorker, SIGNAL(octreeLevelReady(const unsigned int)), this, SLOT(octreeLevelReady(const unsigned int)));
         connect(this->exaWorker, SIGNAL(octreeResultReady(QString)), this, SLOT(workerDone(QString)));
+
         // Start thread
         this->workerThread.start();
-        // Emit signal to start the work
-        emit operateOctreeWorker(octree, this->getTolerance(), this->logger);
-    }
 
+        /*workerInfos = new ExaWorker::OctreeExaWorkerInfos(); //cloud, this->octree, this->box, this->getTolerance());
+        workerInfos->cloud = cloud;
+        workerInfos->octree = this->octree;
+        workerInfos->box = this->box;
+        workerInfos->tolerance = this->getTolerance();*/
+        // Emit signal to start the work
+        emit operateOctreeWorker(this->octree, this->getTolerance(), this->logger);
+    }
     else if(algo == "Linear")
     {
         this->logger->logInfo("Generating intersection with python linear algorithm.");
@@ -355,30 +351,263 @@ void ccExametrics::onCompute()
     CCVector3 normalVector;
     PointCoordinateType d = 0;
     this->pPlane->getEquation(normalVector, d);*/
-
-
 }
 
-// Called when the worker is done
+// Threaded worker done
 void ccExametrics::workerDone(const QString s)
 {
     this->logger->logInfo(s + " done!");
     setGifLoading(false);
-
-    this->m_exametricsGroup->addChild(this->centrePoint2DLabel);
 }
 
 // Called when the worker has computed the desired octree level
 void ccExametrics::octreeLevelReady(const unsigned int level)
 {
+    //std::cout << level << " ccExametrics  octreeLevelReady\n";
     this->logger->logInfo("Displaying Octree with level " + QString::number(level));
-    octree->setDisplayedLevel(level);
+    this->octree->setDisplayedLevel(level);
 
-    this->octreeProxy = new ccOctreeProxy(octree, "Cloud Octree");
+    this->octreeProxy = new ccOctreeProxy(this->octree, "Cloud Octree");
     this->octreeProxy->setDisplay(m_app->getActiveGLWindow());
     this->octreeProxy->setVisible(true);
 
     this->m_exametricsGroup->addChild(octreeProxy);
+
+    this->octreeIntersection(level);
+
+    // test: does this redraw instantly ?
+    //octreeProxy->redrawDisplay();
+}
+
+void ccExametrics::octreeIntersection(const unsigned int level)
+{
+    logger->logInfo("Octree intersection with level " + QString::number(level));
+
+    // Prepare for distance comparison
+    ccPointCloud* compEnt = static_cast<ccPointCloud*>(this->rootLasFile);
+	ccGenericMesh* refMesh = ccHObjectCaster::ToGenericMesh(this->box);
+
+	logger->logInfo(QString::number(refMesh->isKindOf(CC_TYPES::MESH)));
+
+    // Distance comparison dialog
+    if (m_compDlg)
+		delete m_compDlg;
+	m_compDlg = new ccComparisonDlg(compEnt, refMesh, ccComparisonDlg::CLOUDMESH_DIST, m_dlg);
+	if(!m_compDlg)
+	{
+        logger->logError("Can't initialize ccComparisonDlg.");
+        return;
+	}
+	connect(m_compDlg, SIGNAL(finished(int)), this, SLOT(deactivateComparisonMode(int)));
+	m_compDlg->show();
+
+	//freezeUI(true);
+
+    // Filter by value (negative)
+
+
+    return;
+    ccPointCloud* cloud = static_cast<ccPointCloud*>(this->rootLasFile->getChild(0));
+
+    DistanceComputationTools::Cloud2MeshDistanceComputationParams params;
+    params.octreeLevel = level;
+
+    int csize = cloud->size();
+
+    if(!sf)
+    {
+        sf = new ccScalarField("Octree intersection sf");
+    }
+
+    int resizeErr = sf->resize(csize);
+    if (!resizeErr)
+    {
+        logger->logError("Not enough memory");
+        sf->release();
+        return;
+    }
+
+    int sfIdx = cloud->addScalarField(sf);
+
+    //make this SF 'active'
+    cloud->setCurrentScalarField(sfIdx);
+
+    int err = DistanceComputationTools::computeCloud2MeshDistance(cloud, box, params, 0, 0);
+
+    logger->logInfo("computeCloud2MeshDistance err: " + QString::number(err));
+
+    if(err == 0)
+    {
+        sf->computeMinAndMax();
+
+        //cloud->setCurrentDisplayedScalarField(sfIdx);
+        //cloud->showSF(true);
+    }
+    else
+    {
+        //if an error occurred, this SF is useless
+        cloud->deleteScalarField(sfIdx);
+    }
+    std::cout << "0 " << QTime::currentTime().toString("mm:ss").toStdString() << "\n";
+    logger->logInfo("csize: " + QString::number(csize) + " ");
+
+    //cloud->redrawDisplay();
+
+    std::cout << "1 " << QTime::currentTime().toString("mm:ss").toStdString() << "\n";
+    typedef std::pair<ccHObject*, ccPointCloud*> entityAndVerticesType;
+	std::vector<entityAndVerticesType> toFilter;
+
+	// add our las cloud
+	ccGenericPointCloud* lasCloud = ccHObjectCaster::ToGenericPointCloud(this->rootLasFile);
+    if (lasCloud && lasCloud->isA(CC_TYPES::POINT_CLOUD))
+	{
+		ccPointCloud* pc = static_cast<ccPointCloud*>(lasCloud);
+		//la methode est activee sur le champ scalaire affiche
+		CCLib::ScalarField* sf = pc->getCurrentDisplayedScalarField();
+		if (sf)
+		{
+			toFilter.push_back(entityAndVerticesType(lasCloud,pc));
+		}
+		else
+		{
+			logger->logWarn(QString("Entity lasCloud has no active scalar field !"));
+		}
+	}
+
+	// add box
+	ccGenericPointCloud* boxCloud = ccHObjectCaster::ToGenericPointCloud(this->box);
+    if (boxCloud && boxCloud->isA(CC_TYPES::POINT_CLOUD))
+	{
+		ccPointCloud* pc = static_cast<ccPointCloud*>(boxCloud);
+		//la methode est activee sur le champ scalaire affiche
+		CCLib::ScalarField* sf = pc->getCurrentDisplayedScalarField();
+		if (sf)
+		{
+			toFilter.push_back(entityAndVerticesType(boxCloud,pc));
+		}
+		else
+		{
+			logger->logWarn(QString("Entity boxCloud has no active scalar field !"));
+		}
+	}
+
+    double minVald = static_cast<double>(sf->displayRange().start());
+	double maxVald = static_cast<double>(sf->displayRange().stop());
+	ScalarType minVal = static_cast<ScalarType>(-INFINITY);
+	ScalarType maxVal = static_cast<ScalarType>(0);
+
+	std::cout << "2 " << QTime::currentTime().toString("mm:ss").toStdString() << "\n";
+
+
+	cloud->setCurrentOutScalarField(sfIdx);
+
+	std::cout << "3 " << QTime::currentTime().toString("mm:ss").toStdString() << "\n";
+
+	ccHObject* resultInside = nullptr;
+    //ccHObject* resultOutside = nullptr;
+
+    cloud->hidePointsByScalarValue(minVald, maxVald);
+
+    std::cout << "4 " << QTime::currentTime().toString("mm:ss").toStdString() << "\n";
+    ccHObject::Container results;
+	{
+		for ( auto &item : toFilter )
+		{
+			ccHObject* ent = item.first;
+			ccPointCloud* pc = item.second;
+
+			//we set as output (OUT) the currently displayed scalar field
+			int outSfIdx = pc->getCurrentDisplayedScalarFieldIndex();
+			assert(outSfIdx >= 0);
+			pc->setCurrentOutScalarField(outSfIdx);
+
+			ccHObject* resultInside = nullptr;
+			if (ent->isKindOf(CC_TYPES::MESH))
+			{
+				pc->hidePointsByScalarValue(minVal, maxVal);
+				if (ent->isA(CC_TYPES::MESH)/*|| ent->isKindOf(CC_TYPES::PRIMITIVE)*/) //TODO
+					resultInside = ccHObjectCaster::ToMesh(ent)->createNewMeshFromSelection(false);
+				else if (ent->isA(CC_TYPES::SUB_MESH))
+					resultInside = ccHObjectCaster::ToSubMesh(ent)->createNewSubMeshFromSelection(false);
+
+				pc->unallocateVisibilityArray();
+			}
+			else if (ent->isKindOf(CC_TYPES::POINT_CLOUD))
+			{
+				//pc->hidePointsByScalarValue(minVal,maxVal);
+				//result = ccHObjectCaster::ToGenericPointCloud(ent)->hidePointsByScalarValue(false);
+				//pc->unallocateVisibilityArray();
+
+				//shortcut, as we know here that the point cloud is a "ccPointCloud"
+				resultInside = pc->filterPointsByScalarValue(minVal, maxVal, false);
+			}
+
+			if (resultInside)
+			{
+				ent->setEnabled(false);
+				resultInside->setDisplay(ent->getDisplay());
+				resultInside->prepareDisplayForRefresh();
+				this->m_exametricsGroup->addChild(resultInside);
+
+				results.push_back(resultInside);
+			}
+		}
+	}
+    /*if(this->rootLasFile->isKindOf(CC_TYPES::MESH))
+    {
+        if(this->rootLasFile->isA(CC_TYPES::MESH))
+            resultInside = ccHObjectCaster::ToMesh(this->rootLasFile)->createNewMeshFromSelection(false);
+        else if(this->rootLasFile->isA(CC_TYPES::SUB_MESH))
+            resultInside = ccHObjectCaster::ToSubMesh(this->rootLasFile)->createNewSubMeshFromSelection(false);
+    }
+    else
+    {
+        std::cout << "not a mesh\n";
+    }*/
+    if(!resultInside)
+    {
+        std::cout << "resultInside empty\n";
+        return;
+    }
+
+
+    std::cout << "5 " << QTime::currentTime().toString("mm:ss").toStdString() << "\n";
+
+
+    this->rootLasFile->setEnabled(false);
+    std::cout << "6\n";
+    resultInside->setDisplay(m_app->getActiveGLWindow());
+    std::cout << "7\n";
+    resultInside->prepareDisplayForRefresh();
+    std::cout << "8\n";
+    this->m_exametricsGroup->addChild(resultInside);
+    std::cout << "9\n";
+
+}
+
+void ccExametrics::deactivateComparisonMode(int result)
+{
+	//DGM: a bug apperead with recent changes (from CC or QT?)
+	//which prevent us from deleting the dialog right away...
+	//(it seems that QT has not yet finished the dialog closing
+	//when the 'finished' signal is sent).
+	//if(m_compDlg)
+	//	delete m_compDlg;
+	//m_compDlg = 0;
+
+	//if the comparison is a success, we select only the compared entity
+	if (m_compDlg && result == QDialog::Accepted)
+	{
+		/*ccHObject* compEntity = m_compDlg->getComparedEntity();
+		if (compEntity)
+		{
+			m_app->dbRootObject()->selectEntity(compEntity);
+		}*/
+	}
+
+	//freezeUI(false);
+
+	//updateUI();
 }
 
 
@@ -386,6 +615,7 @@ void ccExametrics::octreeLevelReady(const unsigned int level)
 void ccExametrics::onClose()
 {
     stop();
+
     // also removes childs of this->m_exametricsGroup
     m_app->removeFromDB(this->m_exametricsGroup, true);
 }
@@ -530,7 +760,6 @@ void ccExametrics::initializeDrawSettings()
     /* Box */
     this->updateBox();
 
-    /* Update Graphics*/
     this->canUpdateGraphics = true;
 }
 
@@ -561,6 +790,7 @@ void ccExametrics::initVector()
     // save in DB tree
     this->m_exametricsGroup->addChild(this->normalizedVectorPoly);
 }
+
 
 // Update vector display
 void ccExametrics::updateVector()
@@ -779,6 +1009,7 @@ void ccExametrics::onCoefSliderChanged(int value)
 {
     onVectorPointChanged(value);
 }
+
 /* Called when distance coefficient spinbox changed value */
 void ccExametrics::onCoefSpinBoxChanged(int value)
 {
@@ -865,13 +1096,13 @@ double ccExametrics::getNormZ()
     if(!m_dlg) /*warn("normZ");*/ return 0;
     return abs(m_dlg->spbZB->value() - m_dlg->spbZA->value());
 }
-/* Return point A coordinates of the normalized vector */
+/* Return point A of the normalized vector */
 CCVector3d ccExametrics::getNormalizedVectorPointA()
 {
     if(!m_dlg) /*warn("pointA");*/ return CCVector3d(0,0,0);
     return CCVector3d(m_dlg->spbXA->value(), m_dlg->spbYA->value(), m_dlg->spbZA->value());
 }
-/* Return point B coordinates of the normalized vector */
+/* Return point B of the normalized vector */
 CCVector3d ccExametrics::getNormalizedVectorPointB()
 {
     if(!m_dlg) /*warn("pointB");*/ return CCVector3d(0,0,0);
@@ -888,6 +1119,7 @@ CCVector3d ccExametrics::getVectorPoint()
 {
     return m_vectorPoint;
 }
+
 // Get the vector center coordinates
 CCVector3d ccExametrics::getVectorCenter()
 {
@@ -897,9 +1129,13 @@ CCVector3d ccExametrics::getVectorCenter()
                         (A.y + B.y) / 2,
                         (A.z + B.z) / 2);
 }
+
 // Get the vector bisector
 CCVector3d ccExametrics::getVectorMediator()
 {
     CCVector3d AB = getNormalizedVectorPointB() - getNormalizedVectorPointA();
     return CCVector3d(getVectorCenter() * AB);
 }
+
+
+

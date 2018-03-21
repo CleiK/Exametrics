@@ -1,8 +1,5 @@
 cmake_minimum_required(VERSION 3.0)
 
-#REPLACE ALL 'DUMMY' OCCURENCES BY YOUR PLUGIN NAME
-#AND ADAPT THE CODE BELOW TO YOUR OWN NEEDS!
-
 option( INSTALL_QEXAMETRICS_PLUGIN "Check to install qExametrics plugin" OFF )
 
 # CloudCompare 'EXAMETRICS' plugin
@@ -19,16 +16,24 @@ if (INSTALL_QEXAMETRICS_PLUGIN)
 	#include the whole CC directory (easier)
 	include_directories( ${CloudCompare_SOURCE_DIR} )
 
-	#we need ccOverlay classes
-	file( GLOB CC_PLUGIN_CUSTOM_HEADER_LIST ${CloudCompare_SOURCE_DIR}/ccOverlayDialog*.h )
-	file( GLOB CC_PLUGIN_CUSTOM_SOURCE_LIST ${CloudCompare_SOURCE_DIR}/ccOverlayDialog*.cpp )
+	#we need ccComparison classes
+	file( GLOB CC_PLUGIN_CUSTOM_HEADER_LIST ${CloudCompare_SOURCE_DIR}/ccComparisonDlg*.h )
+	file( GLOB CC_PLUGIN_CUSTOM_SOURCE_LIST ${CloudCompare_SOURCE_DIR}/ccComparisonDlg*.cpp )
 
-	#not sure this is the correcrt way of doing this but adding in 
-	#qCC build file so it knows where the ui_*.h files are
+    list( APPEND  CC_PLUGIN_CUSTOM_HEADER_LIST ${CloudCompare_SOURCE_DIR}/ccOverlayDialog.h )
+    list( APPEND  CC_PLUGIN_CUSTOM_SOURCE_LIST ${CloudCompare_SOURCE_DIR}/ccOverlayDialog.cpp )
 
-	#list( APPEND CC_PLUGIN_CUSTOM_UI_LIST ${CMAKE_CURRENT_SOURCE_DIR}/exametricsDialog.ui )
+    # customplot and cchistogramwindow used for ccComparisonDlg
+    list( APPEND  ${CMAKE_CURRENT_SOURCE_DIR}/../../libs/qcustomplot/qcustomplot.h )
+    list( APPEND  ${CMAKE_CURRENT_SOURCE_DIR}/../../libs/qcustomplot/qcustomplot.cpp )
+    list( APPEND  CC_PLUGIN_CUSTOM_HEADER_LIST ${CloudCompare_SOURCE_DIR}/ccHistogramWindow.h )
+    list( APPEND  CC_PLUGIN_CUSTOM_SOURCE_LIST ${CloudCompare_SOURCE_DIR}/ccHistogramWindow.cpp )
+    include_directories( ${CMAKE_CURRENT_SOURCE_DIR}/../../libs/qcustomplot )
 
 	set( CC_PLUGIN_CUSTOM_UI_LIST ${CMAKE_CURRENT_SOURCE_DIR}/exametricsDialog.ui )
+
+    set( CC_PLUGIN_CUSTOM_UI_LIST ${CloudCompare_SOURCE_DIR}/ui_templates/comparisonDlg.ui )
+    set( CC_PLUGIN_CUSTOM_UI_LIST ${CloudCompare_SOURCE_DIR}/ui_templates/histogramDlg.ui )
 
     
     #if the plugin is an 'OpenGL filter', uncomment the line below

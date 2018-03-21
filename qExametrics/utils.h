@@ -1,23 +1,16 @@
 #ifndef Q_EXAMETRICS_UTILS_H
 #define Q_EXAMETRICS_UTILS_H
 
-// Standard library
 #include <math.h>
-
-// CloudCompare
 #include <CCGeom.h> // ccvector3
-
-// Qt
 #include <QString>
 #include <QList>
 #include <QPair>
 
-/* Useful static methods for qExametrics plugin */
 class Utils
 {
     public:
 
-        /* Return true if a is equal to b with a epsilon precision */
         static bool double_equals(double a, double b, double epsilon = 0.01);
 
         /* Return a random number between a and b */
