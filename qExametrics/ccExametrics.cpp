@@ -384,15 +384,16 @@ void ccExametrics::octreeIntersection(const unsigned int level)
     logger->logInfo("Octree intersection with level " + QString::number(level));
 
     // Prepare for distance comparison
-    ccPointCloud* compEnt = static_cast<ccPointCloud*>(this->rootLasFile);
-	ccGenericMesh* refMesh = ccHObjectCaster::ToGenericMesh(this->box);
+    ccPointCloud* compEnt = static_cast<ccPointCloud*>(this->rootLasFile->getChild(0));
+	ccGenericMesh* refEnt = ccHObjectCaster::ToGenericMesh(this->box);
 
-	logger->logInfo(QString::number(refMesh->isKindOf(CC_TYPES::MESH)));
+	logger->logInfo("   " + QString::number(compEnt->isA(CC_TYPES::POINT_CLOUD)));
 
     // Distance comparison dialog
     if (m_compDlg)
 		delete m_compDlg;
-	m_compDlg = new ccComparisonDlg(compEnt, refMesh, ccComparisonDlg::CLOUDMESH_DIST, m_dlg);
+
+	m_compDlg = new ccComparisonDlg(compEnt, refEnt, ccComparisonDlg::CLOUDMESH_DIST, m_dlg);
 	if(!m_compDlg)
 	{
         logger->logError("Can't initialize ccComparisonDlg.");
@@ -409,7 +410,7 @@ void ccExametrics::octreeIntersection(const unsigned int level)
     return;
     ccPointCloud* cloud = static_cast<ccPointCloud*>(this->rootLasFile->getChild(0));
 
-    DistanceComputationTools::Cloud2MeshDistanceComputationParams params;
+    CCLib::DistanceComputationTools::Cloud2MeshDistanceComputationParams params;
     params.octreeLevel = level;
 
     int csize = cloud->size();
@@ -432,7 +433,7 @@ void ccExametrics::octreeIntersection(const unsigned int level)
     //make this SF 'active'
     cloud->setCurrentScalarField(sfIdx);
 
-    int err = DistanceComputationTools::computeCloud2MeshDistance(cloud, box, params, 0, 0);
+    int err = CCLib::DistanceComputationTools::computeCloud2MeshDistance(cloud, box, params, 0, 0);
 
     logger->logInfo("computeCloud2MeshDistance err: " + QString::number(err));
 
@@ -596,14 +597,14 @@ void ccExametrics::deactivateComparisonMode(int result)
 	//m_compDlg = 0;
 
 	//if the comparison is a success, we select only the compared entity
-	if (m_compDlg && result == QDialog::Accepted)
+	/*if (m_compDlg && result == QDialog::Accepted)
 	{
-		/*ccHObject* compEntity = m_compDlg->getComparedEntity();
+		ccHObject* compEntity = m_compDlg->getComparedEntity();
 		if (compEntity)
 		{
 			m_app->dbRootObject()->selectEntity(compEntity);
-		}*/
-	}
+		}
+	}*/
 
 	//freezeUI(false);
 

@@ -18,6 +18,11 @@
 #include <QDoubleSpinBox>
 
 // CloudCompare
+#include <ccSubMesh.h>
+#include <DistanceComputationTools.h>
+#include <ccScalarField.h>
+#include <ccHObjectCaster.h>
+#include <ccComparisonDlg.h>
 #include <ccPointCloud.h>
 #include <ccGenericPointCloud.h>
 #include <ccPolyline.h>
@@ -61,7 +66,7 @@ Q_DECLARE_METATYPE(ccOctree::Shared);
 class ccExametricsDialog;
 //class ccComparisonDlg;
 
-/* Main class of the ccExametrics plugin used to compute 
+/* Main class of the ccExametrics plugin used to compute
    the intersection of a plan with tolerance and a cloud */
 class ccExametrics : public QObject, public ccStdPluginInterface
 {
@@ -241,6 +246,8 @@ signals:
 
 
 protected slots:
+
+	void doAction();
 
 	//**************
 	//GUI actions:
